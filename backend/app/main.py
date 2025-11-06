@@ -12,24 +12,15 @@ app = FastAPI(
     redoc_url="/api/redoc",
 )
 
-# CORS Configuration - MUST be first
-origins = [
-    "http://localhost:3000",   # React app
-    "http://127.0.0.1:3000",   # localhost
-    "http://localhost:3001",   # fallback port
-    "http://127.0.0.1:3001",   # fallback port
-    "http://localhost:5173",   # Vite default
-    "http://127.0.0.1:5173",   # Vite default
-    "https://waze-enterprises-water-project.onrender.com",  # Production frontend
-]
+# CORS Configuration - Handle preflight and actual requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
-    max_age=600,
+    max_age=3600,
 )
 
 # API Routes
