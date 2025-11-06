@@ -82,18 +82,30 @@ routes_loaded = setup_routes()
 @app.get("/debug/routes")
 async def debug_routes():
     """Check which routes are registered"""
-    routes = []
-    for route in app.routes:
-        routes.append({
-            "path": getattr(route, "path", None),
-            "methods": getattr(route, "methods", None),
-            "name": getattr(route, "name", None)
-        })
-    return {
-        "routes_loaded_at_startup": routes_loaded,
-        "route_count": len(routes),
-        "routes": routes[:20]  # First 20 routes
-    }
+    try:
+        routes = []
+        for route in app.routes:
+            path = getattr(route, "path", None)
+            methods = getattr(route, "methods", None)
+            name = getattr(route, "name", None)
+            if path:
+                routes.append({
+                    "path": path,
+                    "methods": list(methods) if methods else None,
+                    "name": name
+                })
+        return {
+            "routes_loaded_at_startup": routes_loaded,
+            "route_count": len(routes),
+            "auth_route_exists": any("/auth" in r.get("path", "") for r in routes),
+            "sample_routes": routes[:10]
+        }
+    except Exception as e:
+        logger.error(f"Error in debug/routes: {e}")
+        return {
+            "error": str(e),
+            "routes_loaded_at_startup": routes_loaded
+        }
 
 @app.get("/debug/reload-routes")
 async def reload_routes():

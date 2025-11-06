@@ -9,7 +9,15 @@ from app.core.config import settings
 from app.db.database import get_db
 from app.models.user import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Lazy load pwd_context to avoid initialization errors
+_pwd_context = None
+
+def get_pwd_context():
+    global _pwd_context
+    if _pwd_context is None:
+        _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    return _pwd_context
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -22,6 +30,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     logger.debug(f"Hash value: {hashed_password[:50]}...")
     
     try:
+        pwd_context = get_pwd_context()
         result = pwd_context.verify(plain_password, hashed_password)
         logger.debug(f"Password verification result: {result}")
         return result
@@ -37,6 +46,7 @@ def get_password_hash(password: str) -> str:
     password = password[:72]
     logger.debug(f"Hashing password: input length={len(password)}")
     try:
+        pwd_context = get_pwd_context()
         hash_result = pwd_context.hash(password)
         logger.debug(f"Hash result length: {len(hash_result)}")
         return hash_result
