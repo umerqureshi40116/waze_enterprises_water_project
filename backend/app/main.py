@@ -63,9 +63,11 @@ async def health_check():
 @app.get("/config")
 async def config_check():
     """Debug endpoint to check configuration"""
-    from app.core.config import settings
+    import os
+    db_url = os.getenv("DATABASE_URL", "NOT_SET")
     return {
-        "environment": settings.ENVIRONMENT,
-        "database_configured": bool(settings.DATABASE_URL),
-        "database_host": settings.DATABASE_URL.split("@")[-1].split("/")[0] if "@" in settings.DATABASE_URL else "unknown"
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "database_url_set": db_url != "NOT_SET",
+        "database_url_preview": db_url[:50] + "..." if db_url != "NOT_SET" else "NOT_SET",
+        "env_vars": list(os.environ.keys())[:10]  # Show first 10 env vars
     }
