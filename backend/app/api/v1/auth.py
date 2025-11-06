@@ -51,7 +51,10 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
     try:
-        user = db.query(User).filter(User.username == user_login.username).first()
+        # Make username lookup case-insensitive
+        user = db.query(User).filter(
+            User.username.ilike(user_login.username)
+        ).first()
         
         if not user or not verify_password(user_login.password, user.password_hash):
             raise HTTPException(
