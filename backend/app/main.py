@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 import logging
@@ -25,29 +25,7 @@ app.add_middleware(
     max_age=3600,
 )
 
-# API Routes - import after app setup
-try:
-    from app.api.v1 import auth, purchases, sales, blows, wastes, stocks, suppliers, customers, reports, dashboard, users, extra_expenditures
-    from app.models import report
-    
-    app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-    app.include_router(users.router, prefix="/api/v1/users", tags=["User Management"])
-    app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
-    app.include_router(purchases.router, prefix="/api/v1/purchases", tags=["Purchases"])
-    app.include_router(sales.router, prefix="/api/v1/sales", tags=["Sales"])
-    app.include_router(blows.router, prefix="/api/v1/blows", tags=["Blow Process"])
-    app.include_router(wastes.router, prefix="/api/v1/wastes", tags=["Waste Management"])
-    app.include_router(extra_expenditures.router, prefix="/api/v1/extra-expenditures", tags=["Extra Expenditures"])
-    app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["Stock & Inventory"])
-    app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Suppliers"])
-    app.include_router(customers.router, prefix="/api/v1/customers", tags=["Customers"])
-    app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
-    logger.info("✅ All routes loaded successfully")
-except Exception as e:
-    logger.error(f"❌ Error loading routes: {e}")
-    import traceback
-    traceback.print_exc()
-
+# Basic endpoints first (don't require database)
 @app.get("/")
 async def root():
     return {
@@ -71,3 +49,32 @@ async def config_check():
         "database_url_preview": db_url[:50] + "..." if db_url != "NOT_SET" else "NOT_SET",
         "env_vars": list(os.environ.keys())[:10]  # Show first 10 env vars
     }
+
+# API Routes - import after app setup
+def setup_routes():
+    try:
+        from app.api.v1 import auth, purchases, sales, blows, wastes, stocks, suppliers, customers, reports, dashboard, users, extra_expenditures
+        from app.models import report
+        
+        app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+        app.include_router(users.router, prefix="/api/v1/users", tags=["User Management"])
+        app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
+        app.include_router(purchases.router, prefix="/api/v1/purchases", tags=["Purchases"])
+        app.include_router(sales.router, prefix="/api/v1/sales", tags=["Sales"])
+        app.include_router(blows.router, prefix="/api/v1/blows", tags=["Blow Process"])
+        app.include_router(wastes.router, prefix="/api/v1/wastes", tags=["Waste Management"])
+        app.include_router(extra_expenditures.router, prefix="/api/v1/extra-expenditures", tags=["Extra Expenditures"])
+        app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["Stock & Inventory"])
+        app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Suppliers"])
+        app.include_router(customers.router, prefix="/api/v1/customers", tags=["Customers"])
+        app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
+        logger.info("✅ All routes loaded successfully")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Error loading routes: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+# Try to load routes on startup
+routes_loaded = setup_routes()
