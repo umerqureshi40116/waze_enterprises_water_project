@@ -31,6 +31,7 @@ async def root():
     return {
         "message": "💧 Water Bottle Inventory Management System",
         "status": "running",
+        "timestamp": "2025-11-07",
         "docs": "/api/docs"
     }
 
