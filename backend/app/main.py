@@ -48,3 +48,13 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/config")
+async def config_check():
+    """Debug endpoint to check configuration"""
+    from app.core.config import settings
+    return {
+        "environment": settings.ENVIRONMENT,
+        "database_configured": bool(settings.DATABASE_URL),
+        "database_host": settings.DATABASE_URL.split("@")[-1].split("/")[0] if "@" in settings.DATABASE_URL else "unknown"
+    }

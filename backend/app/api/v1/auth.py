@@ -50,26 +50,51 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
-    user = db.query(User).filter(User.username == user_login.username).first()
-    
-    if not user or not verify_password(user_login.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        user = db.query(User).filter(User.username == user_login.username).first()
+        
+        if not user or not verify_password(user_login.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user.id},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-    
-    # Create access token
-    access_token = create_access_token(
-        data={"sub": user.id},
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": UserResponse.from_orm(user)
-    }
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": UserResponse.from_orm(user)
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+@router.get("/test-db")
+async def test_db(db: Session = Depends(get_db)):
+    """Test database connection"""
+    try:
+        # Try a simple query
+        users = db.query(User).limit(1).all()
+        return {
+            "status": "success",
+            "message": "Database connection OK",
+            "user_count": len(users)
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
