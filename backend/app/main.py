@@ -78,3 +78,30 @@ def setup_routes():
 
 # Try to load routes on startup
 routes_loaded = setup_routes()
+
+@app.get("/debug/routes")
+async def debug_routes():
+    """Check which routes are registered"""
+    routes = []
+    for route in app.routes:
+        routes.append({
+            "path": getattr(route, "path", None),
+            "methods": getattr(route, "methods", None),
+            "name": getattr(route, "name", None)
+        })
+    return {
+        "routes_loaded_at_startup": routes_loaded,
+        "route_count": len(routes),
+        "routes": routes[:20]  # First 20 routes
+    }
+
+@app.get("/debug/reload-routes")
+async def reload_routes():
+    """Force reload routes"""
+    global routes_loaded
+    logger.info("🔄 Attempting to reload routes...")
+    routes_loaded = setup_routes()
+    return {
+        "routes_loaded": routes_loaded,
+        "message": "Routes reloaded"
+    }
