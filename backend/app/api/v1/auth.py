@@ -50,18 +50,36 @@ async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        # Truncate password to 72 bytes (bcrypt limit)
+        password_input = user_login.password[:72]
+        
         # Make username lookup case-insensitive
         user = db.query(User).filter(
             User.username.ilike(user_login.username)
         ).first()
         
-        if not user or not verify_password(user_login.password, user.password_hash):
+        if not user:
+            logger.warning(f"Login attempt for non-existent user: {user_login.username}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
+        # Verify password with truncated input
+        if not verify_password(password_input, user.password_hash):
+            logger.warning(f"Failed login for user: {user.username}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        logger.info(f"Successful login for user: {user.username}")
         
         # Create access token
         access_token = create_access_token(
@@ -74,9 +92,10 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
             "token_type": "bearer",
             "user": UserResponse.from_orm(user)
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        import logging
-        logging.error(f"Login error: {str(e)}")
+        logger.error(f"Unexpected login error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
