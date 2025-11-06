@@ -20,6 +20,7 @@ origins = [
     "http://127.0.0.1:3001",   # fallback port
     "http://localhost:5173",   # Vite default
     "http://127.0.0.1:5173",   # Vite default
+    "https://waze-enterprises-water-project.onrender.com",  # Production frontend
 ]
 app.add_middleware(
     CORSMiddleware,
