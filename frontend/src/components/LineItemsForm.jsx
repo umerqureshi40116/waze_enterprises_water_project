@@ -82,7 +82,7 @@ const LineItemsForm = ({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900 text-left flex items-center justify-between hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900 text-left flex items-center justify-between hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 relative z-[9998]"
                 style={{ minHeight: '44px' }}
               >
                 <span>
@@ -96,7 +96,7 @@ const LineItemsForm = ({
 
               {/* Custom Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded shadow-lg z-50 max-h-64 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded shadow-2xl z-[9999] max-h-64 overflow-y-auto">
                   <button
                     type="button"
                     onClick={() => {

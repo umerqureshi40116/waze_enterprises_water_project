@@ -14,7 +14,17 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     
     if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        // Invalid JSON, clear storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    } else {
+      // No token or user, make sure storage is clean
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     setLoading(false);
   }, []);
