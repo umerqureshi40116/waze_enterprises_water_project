@@ -19,32 +19,44 @@ const LineItemsForm = ({
   useEffect(() => {
     console.log('📦 LineItemsForm - Items prop received:', items);
     console.log('📦 LineItemsForm - Items count:', items?.length);
+    if (items && items.length > 0) {
+      console.log('📦 First item:', items[0]);
+    }
   }, [items]);
+
+  // Log currentItem state changes
+  useEffect(() => {
+    console.log('💾 CurrentItem state updated:', currentItem);
+  }, [currentItem]);
 
   // Add a new line item
   const handleAddItem = () => {
     console.log('➕ ADD BUTTON CLICKED');
     console.log('currentItem state:', JSON.stringify(currentItem));
     console.log('item_id:', `"${currentItem.item_id}"`);
-    console.log('quantity:', `"${currentItem.quantity}"`);
-    console.log('unit_price:', `"${currentItem.unit_price}"`);
+    console.log('item_id length:', currentItem.item_id.length);
+    console.log('item_id trimmed:', `"${currentItem.item_id?.trim()}"`);
     
-    // Validation
-    if (!currentItem.item_id || currentItem.item_id === '') {
+    // Simpler validation
+    const itemId = currentItem.item_id?.trim();
+    const qty = parseInt(currentItem.quantity);
+    const price = parseFloat(currentItem.unit_price);
+    
+    console.log('Parsed values:', { itemId, qty, price });
+    
+    if (!itemId) {
       console.log('❌ FAIL: item_id is empty');
       toast.error('Please select an item');
       return;
     }
     
-    const qty = parseInt(currentItem.quantity);
-    if (!currentItem.quantity || qty <= 0) {
+    if (!currentItem.quantity || isNaN(qty) || qty <= 0) {
       console.log('❌ FAIL: Invalid quantity:', currentItem.quantity);
       toast.error('Quantity must be greater than 0');
       return;
     }
     
-    const price = parseFloat(currentItem.unit_price);
-    if (!currentItem.unit_price || price <= 0) {
+    if (!currentItem.unit_price || isNaN(price) || price <= 0) {
       console.log('❌ FAIL: Invalid price:', currentItem.unit_price);
       toast.error('Unit price must be greater than 0');
       return;
@@ -53,7 +65,7 @@ const LineItemsForm = ({
     console.log('✅ ALL VALIDATIONS PASSED');
     
     const newItem = {
-      item_id: currentItem.item_id,
+      item_id: itemId,
       quantity: qty,
       unit_price: price
     };
@@ -100,17 +112,20 @@ const LineItemsForm = ({
           {/* Item Selection Row - NATIVE SELECT WITH INPUT CLASS */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Item *</label>
-            <select
-              value={currentItem.item_id}
-              onChange={(e) => {
-                console.log('🔄 Select changed');
-                console.log('New value:', `"${e.target.value}"`);
-                console.log('Event:', e);
-                setCurrentItem({ ...currentItem, item_id: e.target.value });
-              }}
-              className="input"
-              required
-            >
+            <div style={{ position: 'relative', zIndex: 100 }}>
+              <select
+                value={currentItem.item_id}
+                onChange={(e) => {
+                  console.log('🔄 SELECT CHANGED EVENT FIRED');
+                  console.log('   New value:', `"${e.target.value}"`);
+                  console.log('   Selected index:', e.target.selectedIndex);
+                  console.log('   Selected option:', e.target.options[e.target.selectedIndex]?.text);
+                  setCurrentItem({ ...currentItem, item_id: e.target.value });
+                }}
+                className="input"
+                required
+                style={{ position: 'relative', zIndex: 101 }}
+              >
               <option value="">📦 Select Item...</option>
               {items && items.length > 0 ? (
                 items.map(item => (
@@ -121,7 +136,8 @@ const LineItemsForm = ({
               ) : (
                 <option disabled>No items available</option>
               )}
-            </select>
+              </select>
+            </div>
             <div className="text-xs text-gray-500 mt-1">
               ✓ {items?.length || 0} items loaded | Selected: <strong>{currentItem.item_id || 'none'}</strong>
             </div>
