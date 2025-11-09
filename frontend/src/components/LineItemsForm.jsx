@@ -71,14 +71,23 @@ const LineItemsForm = ({
       <h3 className="text-lg font-bold mb-4 text-blue-900">📦 Line Items</h3>
       
       {/* Input Row */}
-      <div className="grid grid-cols-12 gap-3 mb-4 p-4 bg-white rounded-lg border-2 border-blue-200 shadow-md">
-        <div className="col-span-4">
+      <div className="grid grid-cols-12 gap-3 mb-4 p-4 bg-white rounded-lg border-2 border-blue-200 shadow-md relative z-10">
+        <div className="col-span-4 relative z-20">
           <label className="block text-sm font-bold mb-2 text-gray-800">Item *</label>
           <select
             value={currentItem.item_id}
             onChange={(e) => setCurrentItem({ ...currentItem, item_id: e.target.value })}
-            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer appearance-none"
-            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900 cursor-pointer relative z-30"
+            style={{ 
+              pointerEvents: 'auto',
+              zIndex: 30,
+              appearance: 'none',
+              backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 0.5rem center',
+              backgroundSize: '1.5em 1.5em',
+              paddingRight: '2.5rem'
+            }}
           >
             <option value="">📦 Select item...</option>
             {items && items.length > 0 ? (
@@ -93,38 +102,39 @@ const LineItemsForm = ({
           </select>
         </div>
 
-        <div className="col-span-2">
+        <div className="col-span-2 relative z-20">
           <label className="block text-sm font-bold mb-2 text-gray-800">Qty *</label>
           <input
             type="number"
             value={currentItem.quantity}
             onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
             placeholder="0"
-            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer"
-            style={{ pointerEvents: 'auto' }}
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900"
+            style={{ pointerEvents: 'auto', zIndex: 20 }}
             min="1"
           />
         </div>
 
-        <div className="col-span-2">
+        <div className="col-span-2 relative z-20">
           <label className="block text-sm font-bold mb-2 text-gray-800">Unit Price *</label>
           <input
             type="number"
             value={currentItem.unit_price}
             onChange={(e) => setCurrentItem({ ...currentItem, unit_price: e.target.value })}
             placeholder="0.00"
-            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer"
-            style={{ pointerEvents: 'auto' }}
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900"
+            style={{ pointerEvents: 'auto', zIndex: 20 }}
             step="0.01"
             min="0"
           />
         </div>
 
-        <div className="col-span-4 flex items-end">
+        <div className="col-span-4 flex items-end relative z-20">
           <button
             type="button"
             onClick={handleAddItem}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 text-sm font-medium"
+            style={{ zIndex: 20 }}
           >
             <Plus size={16} /> Add Item
           </button>
