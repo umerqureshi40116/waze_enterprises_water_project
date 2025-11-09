@@ -5,18 +5,15 @@
 TRUNCATE TABLE stock_movements, payment_history, wastes, blows, sales, purchases, stocks, items, customers, suppliers, users CASCADE;
 
 ------------------------------------------------------------
--- USERS (with bcrypt hashed passwords)
+-- USERS (passwords will be set via init_db.py or seed_users.py)
 ------------------------------------------------------------
--- Note: These are bcrypt hashes for 'admin' and 'user'
+-- Note: Use seed_users.py to create users with fresh password hashes
+-- This prevents storing old/corrupted hashes in the database
 INSERT INTO users (id, username, email, password_hash, role, created_at)
 VALUES
-('waheed', 'Waheed', 'waheed@company.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYfZZIiOe3q', 'admin', NOW()),
-('umer', 'Umer', 'umer@company.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'user', NOW())
+('waheed', 'Waheed', 'waheed@company.com', '', 'admin', NOW()),
+('umer', 'Umer', 'umer@company.com', '', 'user', NOW())
 ON CONFLICT (id) DO NOTHING;
-
-UPDATE users
-SET password_hash = '$2b$12$vWiZ7wn0RGHoB0VmWG.j/u7KqYmiQWInQDcrPtlmotyICB6ZS19/a'
-WHERE id = 'waheed';
 ------------------------------------------------------------
 -- SUPPLIERS
 ------------------------------------------------------------

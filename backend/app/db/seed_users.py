@@ -33,9 +33,11 @@ def upsert_user(user_id: str, username: str, email: str, password: str, role: st
 
 
 def run():
-    # Defaults: Waheed (admin) / admin, Umer (user) / user
-    upsert_user("waheed", "Waheed", "waheed@example.com", "admin", "admin")
-    upsert_user("umer", "Umer", "umer@example.com", "user", "user")
+    # Set test users with specific passwords
+    # waheed: admin / password: admin123
+    # umer: umer / password: user123
+    upsert_user("waheed", "Waheed", "waheed@example.com", "admin123", "admin")
+    upsert_user("umer", "Umer", "umer@example.com", "user123", "user")
 
 
 if __name__ == "__main__":
