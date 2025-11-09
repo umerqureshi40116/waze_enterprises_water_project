@@ -44,6 +44,15 @@ const Purchases = () => {
 
   // removed quick-add item state
 
+  // ⚠️ LOG FORMDATA CHANGES
+  useEffect(() => {
+    console.log('📊 FORMDATA CHANGED:');
+    console.log('   - bill_number:', formData.bill_number);
+    console.log('   - supplier_id:', formData.supplier_id);
+    console.log('   - line_items:', formData.line_items);
+    console.log('   - line_items length:', formData.line_items?.length);
+  }, [formData]);
+
   useEffect(() => {
     // Initialize bill number
     const initializeBillNumber = async () => {
@@ -607,8 +616,36 @@ const Purchases = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{editMode ? 'Edit Purchase' : 'New Purchase'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">{editMode ? 'Edit Purchase' : 'New Purchase'}</h2>
+              <button 
+                type="button"
+                onClick={() => { setShowModal(false); resetForm(); }} 
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* SAVE AND CANCEL BUTTONS AT TOP - ALWAYS VISIBLE */}
+            <div className="flex gap-3 mb-6 bg-yellow-50 p-3 rounded-lg border-2 border-yellow-300">
+              <button 
+                type="submit" 
+                form="purchase-form"
+                className="btn btn-primary flex-1 py-2 font-bold"
+              >
+                💾 {editMode ? 'Update Purchase' : 'SAVE PURCHASE'}
+              </button>
+              <button 
+                type="button" 
+                onClick={() => { setShowModal(false); resetForm(); }} 
+                className="btn btn-secondary flex-1 py-2"
+              >
+                ❌ Cancel
+              </button>
+            </div>
+
+            <form id="purchase-form" onSubmit={handleSubmit} className="space-y-4">
 
               {/* Bill Number and Supplier - 2 column layout */}
               <div className="grid grid-cols-2 gap-4">
@@ -654,7 +691,16 @@ const Purchases = () => {
 
               <LineItemsForm 
                 lineItems={formData.line_items}
-                onLineItemsChange={(lineItems) => setFormData({ ...formData, line_items: lineItems })}
+                onLineItemsChange={(lineItems) => {
+                  console.log('🔄 CALLBACK FIRED: onLineItemsChange');
+                  console.log('   Received lineItems:', lineItems);
+                  console.log('   Length:', lineItems?.length);
+                  setFormData(prevFormData => {
+                    const newFormData = { ...prevFormData, line_items: lineItems };
+                    console.log('   ✅ Updated formData.line_items to:', newFormData.line_items);
+                    return newFormData;
+                  });
+                }}
                 items={items}
                 isSale={false}
               />
@@ -717,10 +763,7 @@ const Purchases = () => {
                 ></textarea>
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <button type="submit" className="btn btn-primary flex-1">{editMode ? 'Update Purchase' : 'Save Purchase'}</button>
-                <button type="button" onClick={() => { setShowModal(false); resetForm(); }} className="btn btn-secondary flex-1">Cancel</button>
-              </div>
+              <div className="h-2"></div>
             </form>
           </div>
         </div>

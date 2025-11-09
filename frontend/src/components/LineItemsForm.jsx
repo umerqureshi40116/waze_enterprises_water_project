@@ -33,19 +33,19 @@ const LineItemsForm = ({
   const handleAddItem = () => {
     console.log('➕ ADD BUTTON CLICKED');
     console.log('currentItem state:', JSON.stringify(currentItem));
-    console.log('item_id:', `"${currentItem.item_id}"`);
-    console.log('item_id length:', currentItem.item_id.length);
-    console.log('item_id trimmed:', `"${currentItem.item_id?.trim()}"`);
+    console.log('item_id raw:', currentItem.item_id);
+    console.log('item_id type:', typeof currentItem.item_id);
     
-    // Simpler validation
-    const itemId = currentItem.item_id?.trim();
+    // Simpler validation - ensure string conversion
+    const itemId = String(currentItem.item_id || '').trim();
     const qty = parseInt(currentItem.quantity);
     const price = parseFloat(currentItem.unit_price);
     
-    console.log('Parsed values:', { itemId, qty, price });
+    console.log('✅ Parsed values:', { itemId, itemIdType: typeof itemId, qty, price });
     
-    if (!itemId) {
-      console.log('❌ FAIL: item_id is empty');
+    if (!itemId || itemId === '') {
+      console.log('❌ FAIL: item_id is empty or blank');
+      console.log('   itemId:', `"${itemId}"`);
       toast.error('Please select an item');
       return;
     }
@@ -71,7 +71,11 @@ const LineItemsForm = ({
     };
 
     console.log('✅ Adding item:', newItem);
-    onLineItemsChange([...lineItems, newItem]);
+    const updatedItems = [...lineItems, newItem];
+    console.log('📤 CALLING onLineItemsChange with:', updatedItems);
+    console.log('📤 Current lineItems length:', lineItems.length);
+    console.log('📤 New lineItems length:', updatedItems.length);
+    onLineItemsChange(updatedItems);
     setCurrentItem({
       item_id: '',
       quantity: '',
@@ -98,7 +102,8 @@ const LineItemsForm = ({
   };
 
   const getItemName = (itemId) => {
-    const item = items.find(i => i.id === itemId);
+    const itemIdStr = String(itemId);
+    const item = items.find(i => String(i.id) === itemIdStr);
     return item ? item.name : itemId;
   };
 
@@ -114,22 +119,23 @@ const LineItemsForm = ({
             <label className="block text-xs font-medium text-gray-700 mb-1">Item *</label>
             <div style={{ position: 'relative', zIndex: 100 }}>
               <select
-                value={currentItem.item_id}
+                value={String(currentItem.item_id || '')}
                 onChange={(e) => {
+                  const value = e.target.value;
                   console.log('🔄 SELECT CHANGED EVENT FIRED');
-                  console.log('   New value:', `"${e.target.value}"`);
-                  console.log('   Selected index:', e.target.selectedIndex);
+                  console.log('   New value:', `"${value}"`);
+                  console.log('   Value type:', typeof value);
                   console.log('   Selected option:', e.target.options[e.target.selectedIndex]?.text);
-                  setCurrentItem({ ...currentItem, item_id: e.target.value });
+                  console.log('   Setting item_id to:', value);
+                  setCurrentItem({ ...currentItem, item_id: value });
                 }}
                 className="input"
-                required
                 style={{ position: 'relative', zIndex: 101, fontSize: '0.875rem' }}
               >
               <option value="">📦 Select Item...</option>
               {items && items.length > 0 ? (
                 items.map(item => (
-                  <option key={item.id} value={item.id}>
+                  <option key={String(item.id)} value={String(item.id)}>
                     {item.name} (ID: {item.id}) - Stock: {item.current_stock}
                   </option>
                 ))
@@ -151,7 +157,6 @@ const LineItemsForm = ({
                 placeholder="0"
                 className="input text-sm py-1"
                 min="1"
-                required
               />
             </div>
 
@@ -165,7 +170,6 @@ const LineItemsForm = ({
                 className="input text-sm py-1"
                 step="0.01"
                 min="0"
-                required
               />
             </div>
 
