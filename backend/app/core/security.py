@@ -20,45 +20,30 @@ def get_pwd_context():
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, stored_password: str) -> bool:
+    """Compare plain text passwords - no hashing"""
     import logging
     logger = logging.getLogger(__name__)
     
-    logger.info(f"🔐 verify_password called:")
-    logger.info(f"   Plain password length BEFORE truncation: {len(plain_password)}")
-    logger.info(f"   Hashed password length: {len(hashed_password)}")
+    logger.info(f"🔐 Comparing passwords (plain text):")
+    logger.info(f"   Input length: {len(plain_password)}")
+    logger.info(f"   Stored length: {len(stored_password)}")
     
-    # Bcrypt has 72-byte limit - truncate to be safe
-    plain_password = plain_password[:72]
-    logger.info(f"   Plain password length AFTER truncation: {len(plain_password)}")
-    logger.info(f"   Hash preview: {hashed_password[:30]}...")
-    
-    try:
-        pwd_context = get_pwd_context()
-        logger.info(f"   CryptContext loaded successfully")
-        result = pwd_context.verify(plain_password, hashed_password)
-        logger.info(f"   ✅ Password verification result: {result}")
-        return result
-    except Exception as e:
-        logger.error(f"   ❌ Password verification error: {e}")
-        logger.error(f"   Error type: {type(e).__name__}")
-        raise
+    # Simple string comparison
+    result = plain_password == stored_password
+    logger.info(f"   Match result: {result}")
+    return result
 
 def get_password_hash(password: str) -> str:
+    """Store password as plain text - no hashing"""
     import logging
     logger = logging.getLogger(__name__)
     
-    # Bcrypt has 72-byte limit - truncate to be safe
-    password = password[:72]
-    logger.debug(f"Hashing password: input length={len(password)}")
-    try:
-        pwd_context = get_pwd_context()
-        hash_result = pwd_context.hash(password)
-        logger.debug(f"Hash result length: {len(hash_result)}")
-        return hash_result
-    except Exception as e:
-        logger.error(f"Password hashing error: {e}")
-        raise
+    logger.info(f"📝 Storing password (plain text):")
+    logger.info(f"   Password length: {len(password)}")
+    
+    # Just return the password as-is (plain text storage)
+    return password
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

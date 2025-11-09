@@ -25,20 +25,20 @@ def init_sample_data():
         
         print("Initializing sample data...")
         
-        # Users
+        # Users - store plain text passwords
         users = [
             User(
                 id="waheed",
                 username="waheed",
                 email="waheed@company.com",
-                password_hash=get_password_hash("admin123"),
+                password_hash="admin123",  # Plain text password
                 role="admin"
             ),
             User(
                 id="umer",
                 username="umer",
                 email="umer@company.com",
-                password_hash=get_password_hash("user123"),
+                password_hash="user123",  # Plain text password
                 role="user"
             )
         ]

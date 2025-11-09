@@ -10,7 +10,7 @@ def upsert_user(user_id: str, username: str, email: str, password: str, role: st
         if user:
             user.username = username
             user.email = email
-            user.password_hash = get_password_hash(password)
+            user.password_hash = password  # Store plain text
             user.role = role
             action = "updated"
         else:
@@ -18,7 +18,7 @@ def upsert_user(user_id: str, username: str, email: str, password: str, role: st
                 id=user_id,
                 username=username,
                 email=email,
-                password_hash=get_password_hash(password),
+                password_hash=password,  # Store plain text
                 role=role,
             )
             db.add(user)
