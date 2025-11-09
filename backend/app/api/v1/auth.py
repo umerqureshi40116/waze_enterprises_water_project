@@ -54,32 +54,43 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     logger = logging.getLogger(__name__)
     
     try:
+        logger.info(f"📝 Login attempt for username: {user_login.username}")
+        logger.info(f"   Password length: {len(user_login.password)}")
+        
         # Truncate password to 72 bytes (bcrypt limit)
         password_input = user_login.password[:72]
+        logger.info(f"   Truncated password length: {len(password_input)}")
         
         # Make username lookup case-insensitive
         user = db.query(User).filter(
             User.username.ilike(user_login.username)
         ).first()
         
+        logger.info(f"   User found: {user is not None}")
+        
         if not user:
-            logger.warning(f"Login attempt for non-existent user: {user_login.username}")
+            logger.warning(f"❌ Login attempt for non-existent user: {user_login.username}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
+        logger.info(f"   ✅ User found: {user.username}")
+        logger.info(f"   Hash length from DB: {len(user.password_hash)}")
+        logger.info(f"   Hash preview: {user.password_hash[:30]}...")
         
         # Verify password with truncated input
+        logger.info(f"🔐 Attempting password verification...")
         if not verify_password(password_input, user.password_hash):
-            logger.warning(f"Failed login for user: {user.username}")
+            logger.warning(f"❌ Failed login for user: {user.username}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        logger.info(f"Successful login for user: {user.username}")
+        logger.info(f"✅ Successful login for user: {user.username}")
         
         # Create access token
         access_token = create_access_token(
@@ -95,7 +106,7 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected login error: {str(e)}", exc_info=True)
+        logger.error(f"❌ Unexpected login error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"

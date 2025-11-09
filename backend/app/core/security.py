@@ -24,18 +24,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     import logging
     logger = logging.getLogger(__name__)
     
+    logger.info(f"🔐 verify_password called:")
+    logger.info(f"   Plain password length BEFORE truncation: {len(plain_password)}")
+    logger.info(f"   Hashed password length: {len(hashed_password)}")
+    
     # Bcrypt has 72-byte limit - truncate to be safe
     plain_password = plain_password[:72]
-    logger.debug(f"Verifying password: input length={len(plain_password)}, hash length={len(hashed_password)}")
-    logger.debug(f"Hash value: {hashed_password[:50]}...")
+    logger.info(f"   Plain password length AFTER truncation: {len(plain_password)}")
+    logger.info(f"   Hash preview: {hashed_password[:30]}...")
     
     try:
         pwd_context = get_pwd_context()
+        logger.info(f"   CryptContext loaded successfully")
         result = pwd_context.verify(plain_password, hashed_password)
-        logger.debug(f"Password verification result: {result}")
+        logger.info(f"   ✅ Password verification result: {result}")
         return result
     except Exception as e:
-        logger.error(f"Password verification error: {e}")
+        logger.error(f"   ❌ Password verification error: {e}")
+        logger.error(f"   Error type: {type(e).__name__}")
         raise
 
 def get_password_hash(password: str) -> str:
