@@ -58,13 +58,7 @@ const Dashboard = () => {
     setExtraExpenditures(expendituresRes?.data || { total_amount: 0, count: 0 });
   } catch (error) {
     console.error('Dashboard fetch error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      url: error.config?.url
-    });
-    toast.error(`Failed to fetch dashboard data: ${error.response?.data?.detail || error.message}`);
+    toast.error('Failed to fetch dashboard data');
     setMonthlyStats([]);
   } finally {
     setLoading(false);
