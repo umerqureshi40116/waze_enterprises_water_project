@@ -28,17 +28,17 @@ def init_sample_data():
         # Users
         users = [
             User(
-                id="Waheed",
-                username="Waheed",
+                id="waheed",
+                username="waheed",
                 email="waheed@company.com",
-                password_hash=get_password_hash("admin"),
+                password_hash=get_password_hash("admin123"),
                 role="admin"
             ),
             User(
-                id="Umer",
-                username="Umer",
+                id="umer",
+                username="umer",
                 email="umer@company.com",
-                password_hash=get_password_hash("user"),
+                password_hash=get_password_hash("user123"),
                 role="user"
             )
         ]
@@ -147,8 +147,8 @@ def init_sample_data():
         db.commit()
         print("✅ Database initialized successfully!")
         print("\n📝 Sample Login Credentials:")
-        print("   Admin: Waheed / admin")
-        print("   User:  Umer / user")
+        print("   Admin: waheed / admin123")
+        print("   User:  umer / user123")
         
     except Exception as e:
         print(f"❌ Error initializing database: {e}")
