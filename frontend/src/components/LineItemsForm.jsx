@@ -106,12 +106,12 @@ const LineItemsForm = ({
     <div className="w-full border-2 border-blue-300 rounded-lg p-4 bg-blue-50 shadow-sm">
       <h3 className="text-lg font-bold mb-4 text-blue-900">📦 Line Items</h3>
       
-      {/* Input Row - Simplified Layout */}
-      <div className="p-4 bg-white rounded-lg border-2 border-blue-200 shadow-md mb-4">
-        <div className="space-y-3">
-          {/* Item Selection Row - NATIVE SELECT WITH INPUT CLASS */}
+      {/* Input Row - Compact when items exist */}
+      <div className="p-3 bg-white rounded-lg border-2 border-blue-200 shadow-md mb-4">
+        <div className={lineItems.length > 0 ? "space-y-2" : "space-y-3"}>
+          {/* Item Selection Row */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Item *</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Item *</label>
             <div style={{ position: 'relative', zIndex: 100 }}>
               <select
                 value={currentItem.item_id}
@@ -124,7 +124,7 @@ const LineItemsForm = ({
                 }}
                 className="input"
                 required
-                style={{ position: 'relative', zIndex: 101 }}
+                style={{ position: 'relative', zIndex: 101, fontSize: '0.875rem' }}
               >
               <option value="">📦 Select Item...</option>
               {items && items.length > 0 ? (
@@ -138,34 +138,31 @@ const LineItemsForm = ({
               )}
               </select>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              ✓ {items?.length || 0} items loaded | Selected: <strong>{currentItem.item_id || 'none'}</strong>
-            </div>
           </div>
 
-          {/* Quantity and Price Row */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Quantity and Price Row - Compact */}
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Qty *</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Qty</label>
               <input
                 type="number"
                 value={currentItem.quantity}
                 onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
                 placeholder="0"
-                className="input"
+                className="input text-sm py-1"
                 min="1"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Unit Price *</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
               <input
                 type="number"
                 value={currentItem.unit_price}
                 onChange={(e) => setCurrentItem({ ...currentItem, unit_price: e.target.value })}
                 placeholder="0.00"
-                className="input"
+                className="input text-sm py-1"
                 step="0.01"
                 min="0"
                 required
@@ -176,53 +173,53 @@ const LineItemsForm = ({
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="btn btn-primary"
+                className="btn btn-primary text-sm py-1"
               >
-                <Plus size={16} className="inline mr-1" /> Add
+                <Plus size={14} className="inline mr-1" /> Add
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Line Items Table */}
+      {/* Line Items Table - More Compact */}
       {lineItems.length > 0 && (
-        <div className="overflow-x-auto mb-4">
+        <div className="overflow-x-auto mb-2">
           <table className="w-full text-xs">
             <thead className="bg-blue-100 border-b">
               <tr>
-                <th className="text-left p-2">Item</th>
-                <th className="text-right p-2">Qty</th>
-                <th className="text-right p-2">Unit Price</th>
-                <th className="text-right p-2">Line Total</th>
-                <th className="text-center p-2">Action</th>
+                <th className="text-left p-1 text-xs">Item</th>
+                <th className="text-right p-1 text-xs">Qty</th>
+                <th className="text-right p-1 text-xs">Price</th>
+                <th className="text-right p-1 text-xs">Total</th>
+                <th className="text-center p-1 text-xs">🗑️</th>
               </tr>
             </thead>
             <tbody>
               {lineItems.map((item, index) => (
                 <tr key={index} className="border-b hover:bg-gray-100">
-                  <td className="p-2 font-medium">{getItemName(item.item_id)}</td>
-                  <td className="text-right p-2">{item.quantity}</td>
-                  <td className="text-right p-2">Rs {item.unit_price.toLocaleString()}</td>
-                  <td className="text-right p-2 font-semibold text-blue-600">
+                  <td className="p-1 text-xs font-medium">{getItemName(item.item_id)}</td>
+                  <td className="text-right p-1 text-xs">{item.quantity}</td>
+                  <td className="text-right p-1 text-xs">Rs {item.unit_price.toLocaleString()}</td>
+                  <td className="text-right p-1 text-xs font-semibold text-blue-600">
                     Rs {getLineTotal(item).toLocaleString()}
                   </td>
-                  <td className="text-center p-2">
+                  <td className="text-center p-1">
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded"
+                      className="text-red-500 hover:text-red-700 text-xs"
                     >
-                      <Trash2 size={16} />
+                      ✕
                     </button>
                   </td>
                 </tr>
               ))}
-              <tr className="bg-blue-50 font-bold">
-                <td colSpan={3} className="text-right p-2">
+              <tr className="bg-blue-50 font-bold text-xs">
+                <td colSpan={3} className="text-right p-1">
                   TOTAL:
                 </td>
-                <td className="text-right p-2 text-blue-600">
+                <td className="text-right p-1 text-blue-600">
                   Rs {getGrandTotal().toLocaleString()}
                 </td>
                 <td></td>
@@ -234,8 +231,8 @@ const LineItemsForm = ({
 
       {/* Empty State */}
       {lineItems.length === 0 && (
-        <div className="text-center py-6 text-gray-400">
-          <p>No items added yet. Use the form above to add line items.</p>
+        <div className="text-center py-3 text-gray-400 text-sm">
+          <p>No items yet. Add line items above.</p>
         </div>
       )}
     </div>

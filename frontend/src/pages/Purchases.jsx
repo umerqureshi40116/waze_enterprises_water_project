@@ -136,10 +136,26 @@ const Purchases = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log('📝 SUBMIT CLICKED');
+      console.log('formData:', formData);
+      console.log('formData.line_items:', formData.line_items);
+      console.log('formData.line_items length:', formData.line_items?.length);
+      
       if (!formData.line_items || formData.line_items.length === 0) {
+        console.log('❌ NO ITEMS IN FORM DATA');
         toast.error('Please add at least one item');
         return;
       }
+      
+      console.log('✅ Items found:', formData.line_items.length);
+      
+      if (!formData.supplier_id) {
+        console.log('❌ NO SUPPLIER SELECTED');
+        toast.error('Please select a supplier');
+        return;
+      }
+      
+      console.log('✅ All validations passed');
       const purchaseData = {
         bill_number: formData.bill_number,
         supplier_id: String(formData.supplier_id),
