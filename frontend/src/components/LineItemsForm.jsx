@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../utils/currency';
 
@@ -14,6 +14,7 @@ const LineItemsForm = ({
     quantity: '',
     unit_price: ''
   });
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Add a new line item
   const handleAddItem = () => {
@@ -73,29 +74,61 @@ const LineItemsForm = ({
       {/* Input Row - Simplified Layout */}
       <div className="p-4 bg-white rounded-lg border-2 border-blue-200 shadow-md mb-4">
         <div className="space-y-3">
-          {/* Item Selection Row */}
+          {/* Item Selection Row - CUSTOM DROPDOWN */}
           <div className="w-full">
             <label className="block text-sm font-bold mb-2 text-gray-800">Item *</label>
-            <select
-              value={currentItem.item_id}
-              onChange={(e) => setCurrentItem({ ...currentItem, item_id: e.target.value })}
-              className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900 cursor-pointer"
-              style={{ 
-                pointerEvents: 'auto',
-                minHeight: '44px'
-              }}
-            >
-              <option value="">📦 Select item...</option>
-              {items && items.length > 0 ? (
-                items.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} (ID: {item.id}) - Stock: {item.current_stock}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No items available</option>
+            <div className="relative">
+              {/* Custom Dropdown Button */}
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white text-gray-900 text-left flex items-center justify-between hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                style={{ minHeight: '44px' }}
+              >
+                <span>
+                  {currentItem.item_id 
+                    ? `${items.find(i => i.id === currentItem.item_id)?.name || 'Unknown'}`
+                    : '📦 Select item...'
+                  }
+                </span>
+                <ChevronDown size={18} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Custom Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-300 rounded shadow-lg z-50 max-h-64 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentItem({ ...currentItem, item_id: '' });
+                      setIsDropdownOpen(false);
+                    }}
+                    className="w-full text-left p-3 hover:bg-blue-100 text-gray-900 border-b"
+                  >
+                    📦 Select item...
+                  </button>
+                  
+                  {items && items.length > 0 ? (
+                    items.map(item => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setCurrentItem({ ...currentItem, item_id: item.id });
+                          setIsDropdownOpen(false);
+                        }}
+                        className="w-full text-left p-3 hover:bg-blue-100 text-gray-900 border-b transition"
+                      >
+                        <div className="font-medium">{item.name}</div>
+                        <div className="text-xs text-gray-500">ID: {item.id} | Stock: {item.current_stock}</div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="w-full p-3 text-gray-500 text-sm">No items available</div>
+                  )}
+                </div>
               )}
-            </select>
+            </div>
           </div>
 
           {/* Quantity and Price Row */}
