@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../utils/currency';
@@ -15,33 +15,57 @@ const LineItemsForm = ({
     unit_price: ''
   });
 
+  // Debug: Log items on mount and when they change
+  useEffect(() => {
+    console.log('📦 LineItemsForm - Items prop received:', items);
+    console.log('📦 LineItemsForm - Items count:', items?.length);
+  }, [items]);
+
   // Add a new line item
   const handleAddItem = () => {
-    if (!currentItem.item_id) {
+    console.log('➕ ADD BUTTON CLICKED');
+    console.log('currentItem state:', JSON.stringify(currentItem));
+    console.log('item_id:', `"${currentItem.item_id}"`);
+    console.log('quantity:', `"${currentItem.quantity}"`);
+    console.log('unit_price:', `"${currentItem.unit_price}"`);
+    
+    // Validation
+    if (!currentItem.item_id || currentItem.item_id === '') {
+      console.log('❌ FAIL: item_id is empty');
       toast.error('Please select an item');
       return;
     }
-    if (!currentItem.quantity || parseInt(currentItem.quantity) <= 0) {
+    
+    const qty = parseInt(currentItem.quantity);
+    if (!currentItem.quantity || qty <= 0) {
+      console.log('❌ FAIL: Invalid quantity:', currentItem.quantity);
       toast.error('Quantity must be greater than 0');
       return;
     }
-    if (!currentItem.unit_price || parseFloat(currentItem.unit_price) <= 0) {
+    
+    const price = parseFloat(currentItem.unit_price);
+    if (!currentItem.unit_price || price <= 0) {
+      console.log('❌ FAIL: Invalid price:', currentItem.unit_price);
       toast.error('Unit price must be greater than 0');
       return;
     }
 
+    console.log('✅ ALL VALIDATIONS PASSED');
+    
     const newItem = {
       item_id: currentItem.item_id,
-      quantity: parseInt(currentItem.quantity),
-      unit_price: parseFloat(currentItem.unit_price)
+      quantity: qty,
+      unit_price: price
     };
 
+    console.log('✅ Adding item:', newItem);
     onLineItemsChange([...lineItems, newItem]);
     setCurrentItem({
       item_id: '',
       quantity: '',
       unit_price: ''
     });
+    console.log('✅ Form reset');
     toast.success('Item added');
   };
 
@@ -78,7 +102,12 @@ const LineItemsForm = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">Item *</label>
             <select
               value={currentItem.item_id}
-              onChange={(e) => setCurrentItem({ ...currentItem, item_id: e.target.value })}
+              onChange={(e) => {
+                console.log('🔄 Select changed');
+                console.log('New value:', `"${e.target.value}"`);
+                console.log('Event:', e);
+                setCurrentItem({ ...currentItem, item_id: e.target.value });
+              }}
               className="input"
               required
             >
@@ -93,6 +122,9 @@ const LineItemsForm = ({
                 <option disabled>No items available</option>
               )}
             </select>
+            <div className="text-xs text-gray-500 mt-1">
+              ✓ {items?.length || 0} items loaded | Selected: <strong>{currentItem.item_id || 'none'}</strong>
+            </div>
           </div>
 
           {/* Quantity and Price Row */}
