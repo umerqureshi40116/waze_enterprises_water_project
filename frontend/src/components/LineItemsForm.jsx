@@ -77,7 +77,8 @@ const LineItemsForm = ({
           <select
             value={currentItem.item_id}
             onChange={(e) => setCurrentItem({ ...currentItem, item_id: e.target.value })}
-            className="w-full p-2 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer appearance-none"
+            style={{ pointerEvents: 'auto', cursor: 'pointer' }}
           >
             <option value="">📦 Select item...</option>
             {items && items.length > 0 ? (
@@ -99,7 +100,8 @@ const LineItemsForm = ({
             value={currentItem.quantity}
             onChange={(e) => setCurrentItem({ ...currentItem, quantity: e.target.value })}
             placeholder="0"
-            className="w-full p-2 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer"
+            style={{ pointerEvents: 'auto' }}
             min="1"
           />
         </div>
@@ -111,7 +113,8 @@ const LineItemsForm = ({
             value={currentItem.unit_price}
             onChange={(e) => setCurrentItem({ ...currentItem, unit_price: e.target.value })}
             placeholder="0.00"
-            className="w-full p-2 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="w-full p-3 border-2 border-gray-300 rounded text-sm bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 cursor-pointer"
+            style={{ pointerEvents: 'auto' }}
             step="0.01"
             min="0"
           />
