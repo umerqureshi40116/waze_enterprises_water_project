@@ -47,43 +47,7 @@ async def create_expenditure(
     return db_expenditure
 
 
-@router.put("/{expenditure_id}", response_model=ExtraExpenditureResponse)
-async def update_expenditure(
-    expenditure_id: str,
-    expenditure: ExtraExpenditureUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
-):
-    """Update an extra expenditure (admin only)"""
-    db_expenditure = db.query(ExtraExpenditure).filter(ExtraExpenditure.id == expenditure_id).first()
-    if not db_expenditure:
-        raise HTTPException(status_code=404, detail="Expenditure not found")
-
-    update_data = expenditure.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_expenditure, field, value)
-
-    db.commit()
-    db.refresh(db_expenditure)
-    return db_expenditure
-
-
-@router.delete("/{expenditure_id}")
-async def delete_expenditure(
-    expenditure_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin_user)
-):
-    """Delete an extra expenditure (admin only)"""
-    db_expenditure = db.query(ExtraExpenditure).filter(ExtraExpenditure.id == expenditure_id).first()
-    if not db_expenditure:
-        raise HTTPException(status_code=404, detail="Expenditure not found")
-
-    db.delete(db_expenditure)
-    db.commit()
-    return {"message": "Expenditure deleted successfully"}
-
-
+# Specific routes must come BEFORE parameterized routes
 @router.get("/export/excel")
 async def export_expenditures_excel(
     expense_ids: str = None,
@@ -252,3 +216,41 @@ async def get_total_expenditures(
         "total_amount": float(total) if total else 0.0,
         "count": count or 0
     }
+
+
+# Parameterized routes come LAST
+@router.put("/{expenditure_id}", response_model=ExtraExpenditureResponse)
+async def update_expenditure(
+    expenditure_id: str,
+    expenditure: ExtraExpenditureUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Update an extra expenditure (admin only)"""
+    db_expenditure = db.query(ExtraExpenditure).filter(ExtraExpenditure.id == expenditure_id).first()
+    if not db_expenditure:
+        raise HTTPException(status_code=404, detail="Expenditure not found")
+
+    update_data = expenditure.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_expenditure, field, value)
+
+    db.commit()
+    db.refresh(db_expenditure)
+    return db_expenditure
+
+
+@router.delete("/{expenditure_id}")
+async def delete_expenditure(
+    expenditure_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Delete an extra expenditure (admin only)"""
+    db_expenditure = db.query(ExtraExpenditure).filter(ExtraExpenditure.id == expenditure_id).first()
+    if not db_expenditure:
+        raise HTTPException(status_code=404, detail="Expenditure not found")
+
+    db.delete(db_expenditure)
+    db.commit()
+    return {"message": "Expenditure deleted successfully"}
