@@ -175,21 +175,27 @@ const Sales = () => {
       return;
     }
     try {
-      const response = await api.post('/reports/pdf/bills', { bill_numbers: selectedBills }, {
-        params: { bill_type: 'sale' },
-        responseType: 'blob'
-      });
+      // Download each bill as professional Care Packages format invoice
+      for (const billNumber of selectedBills) {
+        const response = await api.get(`/invoices/invoice/sale/${billNumber}`, {
+          responseType: 'blob'
+        });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `combined-${Date.now()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `invoice_${billNumber}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      toast.success(`Downloaded ${selectedBills.length} invoice(s)`);
     } catch (error) {
       console.error('Download selected error:', error);
-      toast.error('Failed to download selected bills');
+      toast.error('Failed to download selected invoices');
     }
   };
 
@@ -208,21 +214,21 @@ const Sales = () => {
 
   const downloadSalePDF = async (bill_number) => {
   try {
-    const response = await api.get(`/reports/pdf/bill/${bill_number}`, {
-      params: { bill_type: 'sale' },
-      responseType: 'blob', // Important for file download
+    const response = await api.get(`/invoices/invoice/sale/${bill_number}`, {
+      responseType: 'blob'
     });
 
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${bill_number}.pdf`);
+    link.setAttribute('download', `invoice_${bill_number}.pdf`);
     document.body.appendChild(link);
     link.click();
     link.remove();
+    toast.success('Invoice downloaded successfully');
   } catch (error) {
     console.error('Download error:', error);
-    toast.error('Failed to download PDF.');
+    toast.error('Failed to download invoice.');
   }
   };
 

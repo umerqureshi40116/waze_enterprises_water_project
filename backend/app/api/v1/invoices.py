@@ -127,6 +127,10 @@ async def download_purchase_invoice(
             })
             total_amount += amount
         
+        # Get received amount and payment status
+        received_amount = float(purchase.paid_amount) if purchase.paid_amount else 0
+        payment_status = purchase.payment_status if hasattr(purchase, 'payment_status') else 'pending'
+        
         # Generate PDF
         pdf_buffer = generator.generate_invoice_pdf(
             company_name="Waze Enterprises - Water Bottle Division",
@@ -140,7 +144,9 @@ async def download_purchase_invoice(
             bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
             items=pdf_items,
             terms="Thank you for doing business with us!",
-            signature_line="Authorized Signatory"
+            signature_line="Authorized Signatory",
+            received_amount=received_amount,
+            payment_status=payment_status
         )
         
         # Return as downloadable file

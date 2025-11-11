@@ -7,11 +7,17 @@ from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, mm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from reportlab.pdfgen import canvas
 from datetime import datetime
 from decimal import Decimal
 import io
+import os
+
+try:
+    from num2words import num2words
+except ImportError:
+    num2words = None
 
 
 class InvoiceReportGenerator:
@@ -50,10 +56,19 @@ class InvoiceReportGenerator:
         return f"Rs {float(amount):,.2f}"
     
     def format_amount_words(self, amount):
-        """Convert amount to words (simplified version)"""
-        # This is a simplified version - for production, use a library like num2words
+        """Convert amount to words in Urdu/English"""
         amount_int = int(float(amount))
-        return f"Amount: Rs {amount_int}"
+        
+        # Try using num2words if available
+        if num2words:
+            try:
+                words = num2words(amount_int, lang='en')
+                return f"Rs {words.title()}"
+            except:
+                pass
+        
+        # Fallback: simple conversion
+        return f"Rs {amount_int} (Rupees only)"
     
     def generate_invoice_pdf(self, 
                            company_name="Waze Enterprises",
@@ -67,7 +82,9 @@ class InvoiceReportGenerator:
                            bill_to_contact="",
                            items=None,
                            terms="",
-                           signature_line="Authorized Signatory"):
+                           signature_line="Authorized Signatory",
+                           received_amount=0,
+                           payment_status="pending"):
         """
         Generate a professional invoice PDF
         
@@ -78,6 +95,8 @@ class InvoiceReportGenerator:
             'unit_price': 1350.00,
             'amount': 61155.00
         }
+        received_amount: Amount already paid
+        payment_status: 'pending', 'partial', or 'paid'
         """
         
         if items is None:
@@ -96,26 +115,71 @@ class InvoiceReportGenerator:
         story = []
         
         # ===== HEADER =====
-        # Company name and details
-        header_data = [
-            [company_name, ""],
-            [company_address, ""],
-        ]
-        if company_phone:
-            header_data.append([f"Phone: {company_phone}", ""])
-        if company_email:
-            header_data.append([f"Email: {company_email}", ""])
+        # Try to load logo
+        logo_element = None
+        try:
+            # Look for Water_Logo.jpg in the project root
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+            logo_path = os.path.join(project_root, 'Water_Logo.jpg')
+            if os.path.exists(logo_path):
+                logo_element = Image(logo_path, width=2.4*inch, height=2.4*inch)
+        except Exception as e:
+            pass
         
-        header_table = Table(header_data, colWidths=[4*inch, 2.5*inch])
-        header_table.setStyle(TableStyle([
-            ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
-            ('FONT', (0, 0), (0, 0), 'Helvetica-Bold', 14),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ]))
+        # Company name and details on left, logo on far right
+        if logo_element:
+            header_left = [
+                [Paragraph(f"<b>{company_name}</b>", ParagraphStyle('CompanyName', parent=self.styles['Normal'], fontSize=12))],
+                [Paragraph(company_address, self.styles['Normal'])],
+            ]
+            if company_phone:
+                header_left.append([Paragraph(f"Phone: {company_phone}", self.styles['Normal'])])
+            if company_email:
+                header_left.append([Paragraph(f"Email: {company_email}", self.styles['Normal'])])
+            
+            left_table = Table(header_left, colWidths=[2.5*inch])
+            left_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 9),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+            ]))
+            
+            # Spacer column to push logo to the right
+            header_data = [
+                [left_table, '', logo_element]
+            ]
+            header_table = Table(header_data, colWidths=[2.5*inch, 2*inch, 1.3*inch])
+            header_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+                ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+                ('LEFTPADDING', (0, 0), (0, 0), 0),
+                ('RIGHTPADDING', (2, 0), (2, 0), 0),
+                ('LEFTPADDING', (2, 0), (2, 0), 20),
+            ]))
+        else:
+            header_data = [
+                [Paragraph(f"<b>{company_name}</b>", ParagraphStyle('CompanyName', parent=self.styles['Normal'], fontSize=12)), ""],
+                [Paragraph(company_address, self.styles['Normal']), ""],
+            ]
+            if company_phone:
+                header_data.append([Paragraph(f"Phone: {company_phone}", self.styles['Normal']), ""])
+            if company_email:
+                header_data.append([Paragraph(f"Email: {company_email}", self.styles['Normal']), ""])
+            
+            header_table = Table(header_data, colWidths=[4*inch, 1.5*inch])
+            header_table.setStyle(TableStyle([
+                ('FONT', (0, 0), (-1, -1), 'Helvetica', 9),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ]))
+        
         story.append(header_table)
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 12))
         
         # Invoice title
         title = Paragraph("Invoice", self.title_style)
@@ -172,13 +236,13 @@ class InvoiceReportGenerator:
         rounded_amount = round(total_amount)
         round_off = rounded_amount - total_amount
         
-        # Add totals row
+        # Add totals row (use Paragraph for proper formatting)
         table_data.append([
             '',
-            '<b>Total</b>',
-            f'<b>{total_quantity:.2f}</b>',
+            Paragraph('<b>Total</b>', self.styles['Normal']),
+            Paragraph(f'<b>{total_quantity:.2f}</b>', self.styles['Normal']),
             '',
-            f'<b>{self.format_currency(total_amount)}</b>',
+            Paragraph(f'<b>{self.format_currency(total_amount)}</b>', self.styles['Normal']),
         ])
         
         # Create table
@@ -244,26 +308,31 @@ class InvoiceReportGenerator:
         
         # ===== TOTAL AMOUNT BOX =====
         total_box_data = [
-            ['', 'Total', self.format_currency(rounded_amount)]
+            ['Total', self.format_currency(rounded_amount)]
         ]
-        total_box = Table(total_box_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+        total_box = Table(total_box_data, colWidths=[1.5*inch, 1.5*inch])
         total_box.setStyle(TableStyle([
-            ('BACKGROUND', (1, 0), (-1, 0), colors.HexColor('#c1201e')),
-            ('TEXTCOLOR', (1, 0), (-1, 0), colors.white),
-            ('ALIGN', (1, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (1, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (1, 0), (-1, 0), 12),
-            ('TOPPADDING', (1, 0), (-1, 0), 10),
-            ('BOTTOMPADDING', (1, 0), (-1, 0), 10),
+            # Red background for both cells
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c1201e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         story.append(total_box)
         story.append(Spacer(1, 15))
         
         # ===== ADDITIONAL INFO =====
+        received = float(received_amount) if received_amount else 0
+        balance = rounded_amount - received
+        
         info_data = [
-            [Paragraph("<b>Received</b>", self.styles['Normal']), Paragraph("Rs 0.00", self.styles['Normal'])],
-            [Paragraph("<b>Balance</b>", self.styles['Normal']), Paragraph(self.format_currency(rounded_amount), self.styles['Normal'])],
+            [Paragraph("<b>Received</b>", self.styles['Normal']), Paragraph(self.format_currency(received), self.styles['Normal'])],
+            [Paragraph("<b>Balance</b>", self.styles['Normal']), Paragraph(self.format_currency(max(0, balance)), self.styles['Normal'])],
         ]
         
         info_table = Table(info_data, colWidths=[2*inch, 2*inch])
@@ -317,6 +386,10 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
         })
         total_amount += amount
     
+    # Get received amount and payment status from sale
+    received_amount = float(sale_bill.paid_amount) if sale_bill.paid_amount else 0
+    payment_status = sale_bill.payment_status if hasattr(sale_bill, 'payment_status') else 'pending'
+    
     # Generate PDF
     pdf_buffer = generator.generate_invoice_pdf(
         company_name="Waze Enterprises - Water Bottle Division",
@@ -330,7 +403,9 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
         bill_to_contact=customer.phone if customer and hasattr(customer, 'phone') else "",
         items=pdf_items,
         terms="Thank you for doing business with us!",
-        signature_line="Authorized Signatory"
+        signature_line="Authorized Signatory",
+        received_amount=received_amount,
+        payment_status=payment_status
     )
     
     return pdf_buffer
