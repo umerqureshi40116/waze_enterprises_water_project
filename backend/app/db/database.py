@@ -9,13 +9,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Optimize connection pool for Render/Neon
-# Use NullPool on Render to avoid connection issues with serverless
+# Detect environment: use NullPool for Render/production by default
 environment = os.getenv("ENVIRONMENT", "development")
+is_render = "RENDER" in os.environ or "onrender.com" in os.getenv("DATABASE_URL", "")
 
-if environment == "production":
-    # Production: Use NullPool to avoid connection pooling issues on Render
+logger.info(f"🔧 Environment: {environment}, Is Render: {is_render}")
+
+# Use NullPool for Render/production, QueuePool for local development
+if is_render or environment == "production":
+    # Production/Render: Use NullPool to avoid connection pooling issues
     # Neon handles connection management, we just create fresh connections
-    logger.info("🔧 Using NullPool for production (Render/Neon)")
+    logger.info("🔧 Using NullPool for Render/production (Neon serverless)")
     engine = create_engine(
         settings.DATABASE_URL,
         poolclass=NullPool,
@@ -27,7 +31,7 @@ if environment == "production":
     )
 else:
     # Local development: Use QueuePool with optimized settings
-    logger.info("🔧 Using QueuePool for development")
+    logger.info("🔧 Using QueuePool for local development")
     engine = create_engine(
         settings.DATABASE_URL,
         poolclass=QueuePool,
