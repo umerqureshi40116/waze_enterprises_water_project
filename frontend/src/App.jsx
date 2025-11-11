@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useKeepAlive } from './hooks/useKeepAlive';
 
 // Pages
 import Login from './pages/Login';
@@ -20,6 +21,12 @@ import Users from './pages/Users';
 
 // Layout
 import Layout from './components/Layout';
+
+// Keep-Alive Component to prevent Render spin-down
+const KeepAliveManager = ({ children }) => {
+  useKeepAlive();
+  return children;
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -68,49 +75,51 @@ const AdminRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Toaster position="top-right" />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="purchases" element={<Purchases />} />
-            <Route path="sales" element={<Sales />} />
-            <Route path="blow-process" element={<BlowProcess />} />
-            <Route path="waste" element={<Waste />} />
-            <Route path="extra-expenditures" element={<ExtraExpenditures />} />
-            <Route path="stock" element={<Stock />} />
-            <Route path="items" element={<Items />} />
-            <Route path="suppliers" element={<Suppliers />} />
-            <Route path="customers" element={<Customers />} />
+      <KeepAliveManager>
+        <Router>
+          <Toaster position="top-right" />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
             <Route
-              path="reports"
+              path="/"
               element={
-                <AdminRoute>
-                  <Reports />
-                </AdminRoute>
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
               }
-            />
-            <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <Users />
-                </AdminRoute>
-              }
-            />
-          </Route>
-        </Routes>
-      </Router>
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="purchases" element={<Purchases />} />
+              <Route path="sales" element={<Sales />} />
+              <Route path="blow-process" element={<BlowProcess />} />
+              <Route path="waste" element={<Waste />} />
+              <Route path="extra-expenditures" element={<ExtraExpenditures />} />
+              <Route path="stock" element={<Stock />} />
+              <Route path="items" element={<Items />} />
+              <Route path="suppliers" element={<Suppliers />} />
+              <Route path="customers" element={<Customers />} />
+              <Route
+                path="reports"
+                element={
+                  <AdminRoute>
+                    <Reports />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="users"
+                element={
+                  <AdminRoute>
+                    <Users />
+                  </AdminRoute>
+                }
+              />
+            </Route>
+          </Routes>
+        </Router>
+      </KeepAliveManager>
     </AuthProvider>
   );
 }

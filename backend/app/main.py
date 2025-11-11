@@ -1,7 +1,9 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from sqlalchemy.orm import Session
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,7 +39,46 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint - doesn't require database"""
+    return {
+        "status": "healthy",
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "database_connected": os.getenv("DATABASE_URL", "NOT_SET") != "NOT_SET"
+    }
+
+@app.get("/health/db")
+async def health_check_db():
+    """Health check with database connection test"""
+    from app.db.database import SessionLocal
+    try:
+        db = SessionLocal()
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "environment": os.getenv("ENVIRONMENT", "unknown")
+        }
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e)
+        }
+
+@app.get("/keep-alive")
+async def keep_alive():
+    """Keep-alive endpoint to prevent Render from spinning down.
+    Call this periodically from your frontend to keep the app running.
+    Recommended: Call every 10 minutes from JavaScript setInterval()
+    """
+    return {
+        "status": "alive",
+        "message": "App is running. Keep calling this to prevent spin-down on Render free tier.",
+        "timestamp": __import__("datetime").datetime.now().isoformat()
+    }
 
 @app.get("/config")
 async def config_check():
