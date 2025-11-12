@@ -6,10 +6,17 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from app.db.database import get_db
 from app.core.security import get_current_user
-from app.core.cache import get_cache, cache_key_dashboard_summary, cache_key_monthly_stats, CACHE_TTL_DASHBOARD_SUMMARY, CACHE_TTL_MONTHLY_STATS
 from app.models.user import User
 from app.models.transaction import Purchase, Sale, Blow, Waste, SaleLineItem, PurchaseLineItem
 from app.models.item import Stock
+
+# Try to import cache, but make it optional (app works even if cache fails)
+try:
+    from app.core.cache import get_cache, cache_key_dashboard_summary, cache_key_monthly_stats, CACHE_TTL_DASHBOARD_SUMMARY, CACHE_TTL_MONTHLY_STATS
+    CACHE_AVAILABLE = True
+except Exception as e:
+    CACHE_AVAILABLE = False
+    print(f"⚠️  Cache import failed (optional): {e}")
 
 router = APIRouter()
 
@@ -18,14 +25,15 @@ async def get_dashboard_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get dashboard summary with key metrics - OPTIMIZED with caching"""
+    """Get dashboard summary with key metrics - with optional caching"""
     
-    # 💾 Check cache first
-    cache = get_cache()
-    cache_key = cache_key_dashboard_summary(current_user.id)
-    cached_result = cache.get(cache_key)
-    if cached_result:
-        return cached_result
+    # 💾 Check cache first (if available)
+    if CACHE_AVAILABLE:
+        cache = get_cache()
+        cache_key = cache_key_dashboard_summary(current_user.id)
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return cached_result
     
     current_month = datetime.now().month
     current_year = datetime.now().year
@@ -99,7 +107,7 @@ async def get_dashboard_summary(
             import logging
             logging.warning(f"Negative profit detected for {current_month}/{current_year}: {profit}. Review cost_basis calculations.")
     
-    # 💾 Cache the result
+    # Create result
     result_dict = {
         "monthly_purchases": float(cost_basis_total),
         "monthly_sales": float(monthly_sales),
@@ -111,7 +119,13 @@ async def get_dashboard_summary(
         "recent_sales": len(recent_sales),
         "total_monthly_purchase_revenue": float(total_monthly_purchase_revenue or 0),
     }
-    cache.set(cache_key, result_dict, ttl=CACHE_TTL_DASHBOARD_SUMMARY)
+    
+    # 💾 Cache the result (if available)
+    if CACHE_AVAILABLE:
+        cache = get_cache()
+        cache_key = cache_key_dashboard_summary(current_user.id)
+        cache.set(cache_key, result_dict, ttl=CACHE_TTL_DASHBOARD_SUMMARY)
+    
     return result_dict
 
 @router.get("/stats/monthly")
@@ -119,14 +133,15 @@ async def get_monthly_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get monthly statistics for charts - OPTIMIZED with caching"""
+    """Get monthly statistics for charts - with optional caching"""
     
-    # 💾 Check cache first
-    cache = get_cache()
-    cache_key = cache_key_monthly_stats(current_user.id)
-    cached_result = cache.get(cache_key)
-    if cached_result:
-        return cached_result
+    # 💾 Check cache first (if available)
+    if CACHE_AVAILABLE:
+        cache = get_cache()
+        cache_key = cache_key_monthly_stats(current_user.id)
+        cached_result = cache.get(cache_key)
+        if cached_result:
+            return cached_result
     
     # Get last 6 months of data with simple, safe queries
     monthly_data = []
@@ -155,6 +170,10 @@ async def get_monthly_stats(
             "sales": float(sales)
         })
     
-    # 💾 Cache the result
-    cache.set(cache_key, monthly_data, ttl=CACHE_TTL_MONTHLY_STATS)
+    # 💾 Cache the result (if available)
+    if CACHE_AVAILABLE:
+        cache = get_cache()
+        cache_key = cache_key_monthly_stats(current_user.id)
+        cache.set(cache_key, monthly_data, ttl=CACHE_TTL_MONTHLY_STATS)
+    
     return monthly_data
