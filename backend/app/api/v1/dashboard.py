@@ -99,29 +99,17 @@ async def get_dashboard_summary(
             import logging
             logging.warning(f"Negative profit detected for {current_month}/{current_year}: {profit}. Review cost_basis calculations.")
     
-    return {
-        "monthly_purchases": cost_basis_total,
-        "monthly_sales": monthly_sales,
-        "monthly_profit": profit,
-        "total_stock_items": total_stock_items,
-        "pending_purchase_payments": pending_purchase_payments,
-        "pending_sale_payments": pending_sale_payments,
-        "recent_purchases": len(recent_purchases),
-        "recent_sales": len(recent_sales),
-        "total_monthly_purchase_revenue": total_monthly_purchase_revenue,
-    }
-    
     # 💾 Cache the result
     result_dict = {
-        "monthly_purchases": cost_basis_total,
-        "monthly_sales": monthly_sales,
+        "monthly_purchases": float(cost_basis_total),
+        "monthly_sales": float(monthly_sales),
         "monthly_profit": profit,
         "total_stock_items": total_stock_items,
-        "pending_purchase_payments": pending_purchase_payments,
-        "pending_sale_payments": pending_sale_payments,
+        "pending_purchase_payments": float(pending_purchase_payments or 0),
+        "pending_sale_payments": float(pending_sale_payments or 0),
         "recent_purchases": len(recent_purchases),
         "recent_sales": len(recent_sales),
-        "total_monthly_purchase_revenue": total_monthly_purchase_revenue,
+        "total_monthly_purchase_revenue": float(total_monthly_purchase_revenue or 0),
     }
     cache.set(cache_key, result_dict, ttl=CACHE_TTL_DASHBOARD_SUMMARY)
     return result_dict
@@ -131,7 +119,7 @@ async def get_monthly_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get monthly statistics for charts - OPTIMIZED with single query and caching"""
+    """Get monthly statistics for charts - OPTIMIZED with caching"""
     
     # 💾 Check cache first
     cache = get_cache()
@@ -140,79 +128,33 @@ async def get_monthly_stats(
     if cached_result:
         return cached_result
     
-    # 🚀 OPTIMIZATION: Instead of looping 6 times with 2 queries each (12 queries),
-    # use a single query with GROUP BY to get all 6 months data at once!
-    
-    from sqlalchemy.sql import label
-    
-    # Get all monthly data in ONE query
-    monthly_results = db.query(
-        extract('year', Purchase.date).label('year'),
-        extract('month', Purchase.date).label('month'),
-        func.sum(Purchase.total_amount).label('purchases'),
-        func.sum(Sale.total_price).label('sales')
-    ).outerjoin(
-        Sale, (extract('year', Purchase.date) == extract('year', Sale.date)) &
-              (extract('month', Purchase.date) == extract('month', Sale.date))
-    ).filter(
-        Purchase.date >= datetime.now() - timedelta(days=180),  # Last 6 months
-        Purchase.status != 'cancelled'
-    ).group_by(
-        extract('year', Purchase.date),
-        extract('month', Purchase.date)
-    ).order_by(
-        extract('year', Purchase.date).asc(),
-        extract('month', Purchase.date).asc()
-    ).all()
-    
-    # If no purchase data, get sales data for last 6 months
-    if not monthly_results:
-        monthly_results = db.query(
-            extract('year', Sale.date).label('year'),
-            extract('month', Sale.date).label('month'),
-            func.cast(0, db.Numeric).label('purchases'),
-            func.sum(Sale.total_price).label('sales')
-        ).filter(
-            Sale.date >= datetime.now() - timedelta(days=180),
-            Sale.status != 'cancelled'
-        ).group_by(
-            extract('year', Sale.date),
-            extract('month', Sale.date)
-        ).order_by(
-            extract('year', Sale.date).asc(),
-            extract('month', Sale.date).asc()
-        ).all()
-    
-    # Format results
+    # Get last 6 months of data with simple, safe queries
     monthly_data = []
-    for result in monthly_results:
-        month_num = int(result.month) if result.month else 1
-        year_num = int(result.year) if result.year else datetime.now().year
+    for i in range(6):
+        date = datetime.now() - timedelta(days=30*i)
+        month = date.month
+        year = date.year
         
-        try:
-            month_date = datetime(year_num, month_num, 1)
-            month_str = month_date.strftime("%b %Y")
-        except:
-            month_str = f"Month {month_num}/{year_num}"
+        # Query purchases for this month
+        purchases = db.query(func.sum(Purchase.total_amount)).filter(
+            extract('month', Purchase.date) == month,
+            extract('year', Purchase.date) == year,
+            Purchase.status != 'cancelled'
+        ).scalar() or 0
         
-        monthly_data.append({
-            "month": month_str,
-            "purchases": float(result.purchases or 0),
-            "sales": float(result.sales or 0)
+        # Query sales for this month
+        sales = db.query(func.sum(Sale.total_price)).filter(
+            extract('month', Sale.date) == month,
+            extract('year', Sale.date) == year,
+            Sale.status != 'cancelled'
+        ).scalar() or 0
+        
+        monthly_data.insert(0, {
+            "month": date.strftime("%b %Y"),
+            "purchases": float(purchases),
+            "sales": float(sales)
         })
     
-    # If we got less than 6 months, pad with zeros
-    if len(monthly_data) < 6:
-        for i in range(6 - len(monthly_data)):
-            past_date = datetime.now() - timedelta(days=30 * (6 - i))
-            monthly_data.insert(0, {
-                "month": past_date.strftime("%b %Y"),
-                "purchases": 0,
-                "sales": 0
-            })
-    
-    result = monthly_data[-6:]  # Get last 6 months
-    
     # 💾 Cache the result
-    cache.set(cache_key, result, ttl=CACHE_TTL_MONTHLY_STATS)
-    return result
+    cache.set(cache_key, monthly_data, ttl=CACHE_TTL_MONTHLY_STATS)
+    return monthly_data
