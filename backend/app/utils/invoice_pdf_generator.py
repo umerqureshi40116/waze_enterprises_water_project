@@ -114,15 +114,30 @@ class InvoiceReportGenerator:
         
         story = []
         
+        # ===== TOP BLUE LINE =====
+        from reportlab.pdfgen.canvas import Canvas
+        blue_line_top = Table([['']],  colWidths=[7*inch], rowHeights=[0.05*inch])
+        blue_line_top.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0066CC')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('BORDER', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(blue_line_top)
+        story.append(Spacer(1, 10))
+        
         # ===== HEADER =====
         # Try to load logo
         logo_element = None
         try:
-            # Look for Water_Logo.jpg in the project root
+            # Look for Waze_logo.png in the project root
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-            logo_path = os.path.join(project_root, 'Water_Logo.jpg')
+            logo_path = os.path.join(project_root, 'Waze_logo.png')
             if os.path.exists(logo_path):
-                logo_element = Image(logo_path, width=2.4*inch, height=1.2*inch)
+                # Scale logo to 2.0 x 1.0 inch for better appearance
+                logo_element = Image(logo_path, width=3.0*inch, height=1.0*inch)
         except Exception as e:
             pass
         
@@ -184,6 +199,18 @@ class InvoiceReportGenerator:
         # Invoice title
         title = Paragraph("Invoice", self.title_style)
         story.append(title)
+        
+        # ===== BLUE LINE BELOW INVOICE HEADING =====
+        blue_line_below = Table([['']],  colWidths=[7*inch], rowHeights=[0.05*inch])
+        blue_line_below.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0066CC')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('BORDER', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(blue_line_below)
         story.append(Spacer(1, 15))
         
         # ===== INVOICE DETAILS (Left and Right) =====
@@ -321,37 +348,40 @@ class InvoiceReportGenerator:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         story.append(total_box)
-        story.append(Spacer(1, 15))
-        
-        # ===== ADDITIONAL INFO =====
-        received = float(received_amount) if received_amount else 0
-        balance = total_amount - received
-        
-        info_data = [
-            [Paragraph("<b>Received</b>", self.styles['Normal']), Paragraph(self.format_currency(received), self.styles['Normal'])],
-            [Paragraph("<b>Balance</b>", self.styles['Normal']), Paragraph(self.format_currency(max(0, balance)), self.styles['Normal'])],
-        ]
-        
-        info_table = Table(info_data, colWidths=[2*inch, 2*inch])
-        info_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ]))
-        story.append(info_table)
         story.append(Spacer(1, 20))
-        
-        # ===== TERMS AND CONDITIONS =====
-        if terms:
-            story.append(Paragraph("<b>Terms and Conditions</b>", self.heading_style))
-            story.append(Paragraph(terms, self.styles['Normal']))
-            story.append(Spacer(1, 15))
         
         # ===== SIGNATURE =====
         story.append(Spacer(1, 30))
         story.append(Paragraph(signature_line, self.styles['Normal']))
-        story.append(Spacer(1, 5))
+        story.append(Spacer(1, 10))
+        
+        # Add signature image if it exists (true left alignment)
+        signature_path = r"E:\water\zeeshan_signature.png"
+        if os.path.exists(signature_path):
+            try:
+                signature_img = Image(signature_path, width=1.5*inch, height=0.75*inch)
+                # Create a left-aligned paragraph style wrapper
+                sig_style = ParagraphStyle(
+                    'LeftAligned',
+                    parent=self.styles['Normal'],
+                    alignment=0,  # 0 = left, 1 = center, 2 = right
+                )
+                # Create a minimal table that doesn't center
+                sig_table = Table([[signature_img]], colWidths=[7*inch])
+                sig_table.setStyle(TableStyle([
+                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                    ('VALIGN', (0, 0), (0, 0), 'TOP'),
+                    ('LEFTPADDING', (0, 0), (0, 0), 0),
+                    ('RIGHTPADDING', (0, 0), (0, 0), 0),
+                    ('TOPPADDING', (0, 0), (0, 0), 0),
+                    ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+                    ('BORDER', (0, 0), (0, 0), 0, colors.white),
+                ]))
+                story.append(sig_table)
+                story.append(Spacer(1, 5))
+            except Exception as e:
+                print(f"Warning: Could not load signature image: {e}")
+        
         story.append(Paragraph("_" * 40, self.styles['Normal']))
         
         # Build PDF
