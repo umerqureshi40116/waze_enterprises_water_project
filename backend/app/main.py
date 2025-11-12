@@ -129,7 +129,7 @@ async def config_check():
 # API Routes - import after app setup
 def setup_routes():
     try:
-        from app.api.v1 import auth, purchases, sales, blows, wastes, stocks, suppliers, customers, reports, dashboard, users, extra_expenditures, invoices, stock_balance
+        from app.api.v1 import auth, purchases, sales, blows, wastes, stocks, suppliers, customers, reports, dashboard, users, extra_expenditures, invoices, stock_balance, stock_verification
         # Don't import models - they initialize when the modules are imported
         
         app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
@@ -142,6 +142,7 @@ def setup_routes():
         app.include_router(extra_expenditures.router, prefix="/api/v1/extra-expenditures", tags=["Extra Expenditures"])
         app.include_router(stocks.router, prefix="/api/v1/stocks", tags=["Stock & Inventory"])
         app.include_router(stock_balance.router, prefix="/api/v1/stock-balance", tags=["Stock Running Balance"])
+        app.include_router(stock_verification.router, prefix="/api/v1/stock-verify", tags=["Stock Verification"])
         app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Suppliers"])
         app.include_router(customers.router, prefix="/api/v1/customers", tags=["Customers"])
         app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
