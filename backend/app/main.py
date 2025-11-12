@@ -18,22 +18,15 @@ app = FastAPI(
 )
 
 # CORS Configuration - Handle preflight and actual requests
-# Allow all origins - frontend and backend are on different Render domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (Render frontend/backend)
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=3600,
 )
-
-# OPTIONS preflight handler
-@app.options("/{full_path:path}")
-async def preflight_handler(full_path: str):
-    """Handle CORS preflight requests"""
-    return {"message": "OK"}
 
 # Request Timing Middleware - Log response times to identify slow endpoints
 @app.middleware("http")
