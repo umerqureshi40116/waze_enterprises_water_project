@@ -12,8 +12,9 @@ from app.models.transaction import Sale, Purchase
 from app.models.item import Item
 from app.models.party import Customer, Supplier
 from fastapi.responses import StreamingResponse
-from app.utils.invoice_pdf_generator import generate_sales_invoice_pdf
+from app.utils.invoice_pdf_generator import generate_sales_invoice_pdf, generate_purchase_invoice_pdf
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -50,8 +51,9 @@ async def download_sale_invoice(
         # Get all items
         items_list = db.query(Item).all()
         
-        # Generate PDF
-        pdf_buffer = generate_sales_invoice_pdf(
+        # Generate PDF asynchronously to avoid blocking the event loop
+        pdf_buffer = await asyncio.to_thread(
+            generate_sales_invoice_pdf,
             sale_bill=sale,
             customer=customer,
             line_items=line_items,
@@ -105,48 +107,13 @@ async def download_purchase_invoice(
         # Get all items
         items_list = db.query(Item).all()
         
-        # Generate PDF
-        from app.utils.invoice_pdf_generator import InvoiceReportGenerator
-        
-        generator = InvoiceReportGenerator()
-        
-        # Prepare items
-        pdf_items = []
-        total_amount = 0
-        
-        for line_item in line_items:
-            item = next((i for i in items_list if i.id == line_item.item_id), None)
-            item_name = item.name if item else line_item.item_id
-            amount = float(line_item.quantity) * float(line_item.unit_price)
-            
-            pdf_items.append({
-                'item_name': item_name,
-                'quantity': float(line_item.quantity),
-                'unit_price': float(line_item.unit_price),
-                'amount': amount,
-            })
-            total_amount += amount
-        
-        # Get received amount and payment status
-        received_amount = float(purchase.paid_amount) if purchase.paid_amount else 0
-        payment_status = purchase.payment_status if hasattr(purchase, 'payment_status') else 'pending'
-        
-        # Generate PDF
-        pdf_buffer = generator.generate_invoice_pdf(
-            company_name="Waze Enterprises - Water Bottle Division",
-            company_address="Your Company Address",
-            company_phone="+92 XXX XXXXXXX",
-            company_email="info@waze-enterprises.com",
-            invoice_no=purchase.bill_number,
-            invoice_date=purchase.date.strftime('%d-%m-%Y') if hasattr(purchase.date, 'strftime') else str(purchase.date),
-            bill_to_name=supplier.name if supplier else "Unknown Supplier",
-            bill_to_address=supplier.address if supplier and hasattr(supplier, 'address') else "",
-            bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
-            items=pdf_items,
-            terms="Thank you for doing business with us!",
-            signature_line="Authorized Signatory",
-            received_amount=received_amount,
-            payment_status=payment_status
+        # Generate PDF asynchronously to avoid blocking the event loop
+        pdf_buffer = await asyncio.to_thread(
+            generate_purchase_invoice_pdf,
+            purchase_bill=purchase,
+            supplier=supplier,
+            line_items=line_items,
+            items_db=items_list
         )
         
         # Return as downloadable file

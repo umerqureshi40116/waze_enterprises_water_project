@@ -122,7 +122,7 @@ class InvoiceReportGenerator:
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
             logo_path = os.path.join(project_root, 'Water_Logo.jpg')
             if os.path.exists(logo_path):
-                logo_element = Image(logo_path, width=2.4*inch, height=2.4*inch)
+                logo_element = Image(logo_path, width=2.4*inch, height=1.2*inch)
         except Exception as e:
             pass
         
@@ -179,7 +179,7 @@ class InvoiceReportGenerator:
             ]))
         
         story.append(header_table)
-        story.append(Spacer(1, 12))
+        story.append(Spacer(1, 6))
         
         # Invoice title
         title = Paragraph("Invoice", self.title_style)
@@ -213,7 +213,7 @@ class InvoiceReportGenerator:
             ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
         ]))
         story.append(details_table)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 12))
         
         # ===== ITEMS TABLE =====
         table_data = [
@@ -233,8 +233,6 @@ class InvoiceReportGenerator:
         # Calculate totals
         total_quantity = sum(float(item.get('quantity', 0)) for item in items)
         total_amount = sum(float(item.get('amount', 0)) for item in items)
-        rounded_amount = round(total_amount)
-        round_off = rounded_amount - total_amount
         
         # Add totals row (use Paragraph for proper formatting)
         table_data.append([
@@ -292,7 +290,6 @@ class InvoiceReportGenerator:
                 Paragraph(f"<b>Invoice Amount In Words</b><br/>{self.format_amount_words(total_amount)}", self.styles['Normal']),
                 Table([
                     ['Sub Total', self.format_currency(total_amount)],
-                    ['Round off', self.format_currency(round_off)],
                 ], colWidths=[1.5*inch, 1.2*inch]),
             ]
         ]
@@ -308,7 +305,7 @@ class InvoiceReportGenerator:
         
         # ===== TOTAL AMOUNT BOX =====
         total_box_data = [
-            ['Total', self.format_currency(rounded_amount)]
+            ['Total', self.format_currency(total_amount)]
         ]
         total_box = Table(total_box_data, colWidths=[1.5*inch, 1.5*inch])
         total_box.setStyle(TableStyle([
@@ -328,7 +325,7 @@ class InvoiceReportGenerator:
         
         # ===== ADDITIONAL INFO =====
         received = float(received_amount) if received_amount else 0
-        balance = rounded_amount - received
+        balance = total_amount - received
         
         info_data = [
             [Paragraph("<b>Received</b>", self.styles['Normal']), Paragraph(self.format_currency(received), self.styles['Normal'])],
@@ -401,6 +398,54 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
         bill_to_name=customer.name if customer else "Unknown Customer",
         bill_to_address=customer.address if customer and hasattr(customer, 'address') else "",
         bill_to_contact=customer.phone if customer and hasattr(customer, 'phone') else "",
+        items=pdf_items,
+        terms="Thank you for doing business with us!",
+        signature_line="Authorized Signatory",
+        received_amount=received_amount,
+        payment_status=payment_status
+    )
+    
+    return pdf_buffer
+
+
+def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db):
+    """
+    Helper function to generate purchase invoice PDF from database objects
+    """
+    generator = InvoiceReportGenerator()
+    
+    # Prepare items for PDF
+    pdf_items = []
+    total_amount = 0
+    
+    for line_item in line_items:
+        item = next((i for i in items_db if i.id == line_item.item_id), None)
+        item_name = item.name if item else line_item.item_id
+        amount = float(line_item.quantity) * float(line_item.unit_price)
+        
+        pdf_items.append({
+            'item_name': item_name,
+            'quantity': float(line_item.quantity),
+            'unit_price': float(line_item.unit_price),
+            'amount': amount,
+        })
+        total_amount += amount
+    
+    # Get received amount and payment status from purchase
+    received_amount = float(purchase_bill.paid_amount) if purchase_bill.paid_amount else 0
+    payment_status = purchase_bill.payment_status if hasattr(purchase_bill, 'payment_status') else 'pending'
+    
+    # Generate PDF
+    pdf_buffer = generator.generate_invoice_pdf(
+        company_name="Waze Enterprises - Water Bottle Division",
+        company_address="Your Company Address",
+        company_phone="+92 XXX XXXXXXX",
+        company_email="info@waze-enterprises.com",
+        invoice_no=purchase_bill.bill_number,
+        invoice_date=purchase_bill.date.strftime('%d-%m-%Y') if hasattr(purchase_bill.date, 'strftime') else str(purchase_bill.date),
+        bill_to_name=supplier.name if supplier else "Unknown Supplier",
+        bill_to_address=supplier.address if supplier and hasattr(supplier, 'address') else "",
+        bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
         items=pdf_items,
         terms="Thank you for doing business with us!",
         signature_line="Authorized Signatory",

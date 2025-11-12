@@ -250,18 +250,20 @@ const Purchases = () => {
 
   const downloadPDF = async (billNumber) => {
     try {
-      const response = await api.get(`/reports/pdf/bill/${billNumber}?bill_type=purchase`, {
+      const response = await api.get(`/invoices/invoice/purchase/${billNumber}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${billNumber}.pdf`);
+      link.setAttribute('download', `purchase_invoice_${billNumber}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      toast.success('Purchase invoice downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download PDF');
+      console.error('Download error:', error);
+      toast.error('Failed to download invoice');
     }
   };
 
@@ -271,20 +273,27 @@ const Purchases = () => {
       return;
     }
     try {
-      const response = await api.post('/purchases/pdf/purchases', { bill_numbers: selectedBills }, {
-        responseType: 'blob'
-      });
+      // Download each bill as professional Care Packages format invoice
+      for (const billNumber of selectedBills) {
+        const response = await api.get(`/invoices/invoice/purchase/${billNumber}`, {
+          responseType: 'blob'
+        });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `combined-purchases-${Date.now()}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `purchase_invoice_${billNumber}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        
+        // Small delay between downloads
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      toast.success(`Downloaded ${selectedBills.length} invoice(s)`);
     } catch (error) {
-      console.error('Download selected purchases error:', error);
-      toast.error('Failed to download selected purchases');
+      console.error('Download selected error:', error);
+      toast.error('Failed to download selected invoices');
     }
   };
 

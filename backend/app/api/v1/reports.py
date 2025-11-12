@@ -22,6 +22,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 import calendar
+import asyncio
 
 router = APIRouter()
 
@@ -1167,7 +1168,7 @@ async def export_purchases_excel(
 
         # Get suppliers and items for lookups
         suppliers_map = {s.id: s.name for s in db.query(Supplier).all()}
-        items_map = {i.id: i.name for i in db.query(Supplier).all()}
+        items_map = {i.id: i.name for i in db.query(Item).all()}
 
         # Create Excel workbook
         wb = Workbook()
@@ -1230,43 +1231,48 @@ async def export_purchases_excel(
 
         for purchase in purchases:
             supplier_name = suppliers_map.get(purchase.supplier_id, purchase.supplier_id)
-            item_name = items_map.get(purchase.item_id, purchase.item_id)
             
-            cells_data = [
-                purchase.bill_number,
-                supplier_name,
-                item_name,
-                purchase.quantity,
-                float(purchase.unit_price) if purchase.unit_price else 0,
-                float(purchase.total_amount) if purchase.total_amount else 0,
-                purchase.payment_status,
-                float(purchase.paid_amount) if purchase.paid_amount else 0,
-                purchase.date.strftime("%Y-%m-%d") if purchase.date else ""
-            ]
+            # Get line items for this purchase
+            line_items = db.query(PurchaseLineItem).filter(PurchaseLineItem.bill_number == purchase.bill_number).all()
+            
+            if line_items:
+                for line_item in line_items:
+                    item_name = items_map.get(line_item.item_id, line_item.item_id)
+                    
+                    cells_data = [
+                        purchase.bill_number,
+                        supplier_name,
+                        item_name,
+                        line_item.quantity,
+                        float(line_item.unit_price) if line_item.unit_price else 0,
+                        float(line_item.total_price) if line_item.total_price else 0,
+                        purchase.payment_status,
+                        float(purchase.paid_amount) if purchase.paid_amount else 0,
+                        purchase.date.strftime("%Y-%m-%d") if purchase.date else ""
+                    ]
 
-            for col, value in enumerate(cells_data, 1):
-                cell = ws.cell(row=row, column=col)
-                cell.value = value
-                cell.border = border
-                cell.alignment = Alignment(horizontal='left', vertical='center')
+                    for col, value in enumerate(cells_data, 1):
+                        cell = ws.cell(row=row, column=col)
+                        cell.value = value
+                        cell.border = border
+                        cell.alignment = Alignment(horizontal='left', vertical='center')
 
-                # Format currency columns
-                if col in [5, 6, 9]:  # Unit Price, Total Amount, Paid Amount
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = Alignment(horizontal='right', vertical='center')
+                        # Format currency columns
+                        if col in [5, 6, 8]:  # Unit Price, Total Amount, Paid Amount
+                            cell.number_format = '#,##0.00'
+                            cell.alignment = Alignment(horizontal='right', vertical='center')
 
-            # Sum totals
-            total_amount_sum += float(purchase.total_amount) if purchase.total_amount else 0
-            paid_amount_sum += float(purchase.paid_amount) if purchase.paid_amount else 0
-
-            row += 1
+                    # Sum totals
+                    total_amount_sum += float(line_item.total_price) if line_item.total_price else 0
+                    paid_amount_sum += float(purchase.paid_amount) if purchase.paid_amount else 0
+                    row += 1
 
         # Summary row
         row += 1
         ws[f'A{row}'] = "SUMMARY"
         ws[f'A{row}'].font = Font(bold=True, size=11)
         ws[f'A{row}'].fill = total_fill
-        ws.merge_cells(f'A{row}:J{row}')
+        ws.merge_cells(f'A{row}:I{row}')
         ws.row_dimensions[row].height = 20
 
         row += 1
@@ -1297,7 +1303,7 @@ async def export_purchases_excel(
         ws[f'B{row}'].fill = total_fill
 
         # Column widths
-        column_widths = [28, 20, 20, 12, 12, 15, 12, 15, 12, 15]
+        column_widths = [28, 20, 20, 12, 12, 15, 12, 15, 12]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 
@@ -1383,7 +1389,6 @@ async def export_sales_excel(
             "Quantity",
             "Unit Price",
             "Total Price",
-            "Cost Basis",
             "Payment Status",
             "Paid Amount",
             "Date"
@@ -1406,44 +1411,48 @@ async def export_sales_excel(
 
         for sale in sales:
             customer_name = customers_map.get(sale.customer_id, sale.customer_id)
-            item_name = items_map.get(sale.item_id, sale.item_id)
             
-            cells_data = [
-                sale.bill_number,
-                customer_name,
-                item_name,
-                sale.quantity,
-                float(sale.unit_price) if sale.unit_price else 0,
-                float(sale.total_price) if sale.total_price else 0,
-                float(sale.cost_basis) if sale.cost_basis else 0,
-                sale.payment_status,
-                float(sale.paid_amount) if sale.paid_amount else 0,
-                sale.date.strftime("%Y-%m-%d") if sale.date else ""
-            ]
+            # Get line items for this sale
+            line_items = db.query(SaleLineItem).filter(SaleLineItem.bill_number == sale.bill_number).all()
+            
+            if line_items:
+                for line_item in line_items:
+                    item_name = items_map.get(line_item.item_id, line_item.item_id)
+                    
+                    cells_data = [
+                        sale.bill_number,
+                        customer_name,
+                        item_name,
+                        line_item.quantity,
+                        float(line_item.unit_price) if line_item.unit_price else 0,
+                        float(line_item.total_price) if line_item.total_price else 0,
+                        sale.payment_status,
+                        float(sale.paid_amount) if sale.paid_amount else 0,
+                        sale.date.strftime("%Y-%m-%d") if sale.date else ""
+                    ]
 
-            for col, value in enumerate(cells_data, 1):
-                cell = ws.cell(row=row, column=col)
-                cell.value = value
-                cell.border = border
-                cell.alignment = Alignment(horizontal='left', vertical='center')
+                    for col, value in enumerate(cells_data, 1):
+                        cell = ws.cell(row=row, column=col)
+                        cell.value = value
+                        cell.border = border
+                        cell.alignment = Alignment(horizontal='left', vertical='center')
 
-                # Format currency columns
-                if col in [5, 6, 7, 9]:  # Unit Price, Total Price, Cost Basis, Paid Amount
-                    cell.number_format = '#,##0.00'
-                    cell.alignment = Alignment(horizontal='right', vertical='center')
+                        # Format currency columns
+                        if col in [5, 6, 8]:  # Unit Price, Total Price, Paid Amount
+                            cell.number_format = '#,##0.00'
+                            cell.alignment = Alignment(horizontal='right', vertical='center')
 
-            # Sum totals
-            total_price_sum += float(sale.total_price) if sale.total_price else 0
-            paid_amount_sum += float(sale.paid_amount) if sale.paid_amount else 0
-
-            row += 1
+                    # Sum totals
+                    total_price_sum += float(line_item.total_price) if line_item.total_price else 0
+                    paid_amount_sum += float(sale.paid_amount) if sale.paid_amount else 0
+                    row += 1
 
         # Summary row
         row += 1
         ws[f'A{row}'] = "SUMMARY"
         ws[f'A{row}'].font = Font(bold=True, size=11)
         ws[f'A{row}'].fill = total_fill
-        ws.merge_cells(f'A{row}:J{row}')
+        ws.merge_cells(f'A{row}:I{row}')
         ws.row_dimensions[row].height = 20
 
         row += 1
@@ -1474,7 +1483,7 @@ async def export_sales_excel(
         ws[f'B{row}'].fill = total_fill
 
         # Column widths
-        column_widths = [28, 20, 20, 12, 12, 15, 15, 12, 15, 12]
+        column_widths = [28, 20, 20, 12, 12, 15, 15, 12, 15]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[chr(64 + col)].width = width
 

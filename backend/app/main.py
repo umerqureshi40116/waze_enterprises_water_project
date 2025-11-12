@@ -1,9 +1,10 @@
-from fastapi import FastAPI, APIRouter, Depends
+from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from sqlalchemy.orm import Session
 import logging
 import os
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,33 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
+
+# Request Timing Middleware - Log response times to identify slow endpoints
+@app.middleware("http")
+async def log_request_timing(request: Request, call_next):
+    """Log the execution time of each request to identify bottlenecks."""
+    # Skip logging for health checks and keep-alive (too noisy)
+    skip_paths = {"/keep-alive", "/health"}
+    if request.url.path in skip_paths:
+        return await call_next(request)
+    
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
+    
+    # Log slow requests (>1 second) or all requests if in debug mode
+    if duration > 1.0:  # Only log slow requests
+        logger.warning(
+            f"🐌 SLOW REQUEST: {request.method} {request.url.path} "
+            f"took {duration:.2f}s (status: {response.status_code})"
+        )
+    else:
+        logger.debug(
+            f"✅ {request.method} {request.url.path} "
+            f"completed in {duration:.3f}s (status: {response.status_code})"
+        )
+    
+    return response
 
 # Basic endpoints first (don't require database)
 @app.get("/")
