@@ -100,13 +100,19 @@ async def health_check_db():
 async def keep_alive():
     """Keep-alive endpoint to prevent Render from spinning down.
     Call this periodically from your frontend to keep the app running.
-    Recommended: Call every 10 minutes from JavaScript setInterval()
+    No authentication required - this is just to prevent auto-shutdown.
+    Recommended: Call every 5 minutes from JavaScript
     """
     return {
         "status": "alive",
         "message": "App is running. Keep calling this to prevent spin-down on Render free tier.",
         "timestamp": __import__("datetime").datetime.now().isoformat()
     }
+
+@app.head("/keep-alive")
+async def keep_alive_head():
+    """HEAD endpoint for keep-alive - even lighter than GET"""
+    return
 
 @app.get("/config")
 async def config_check():
