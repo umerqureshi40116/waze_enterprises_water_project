@@ -636,24 +636,6 @@ const Purchases = () => {
               </button>
             </div>
 
-            {/* SAVE AND CANCEL BUTTONS AT TOP - ALWAYS VISIBLE */}
-            <div className="flex gap-3 mb-6 bg-yellow-50 p-3 rounded-lg border-2 border-yellow-300">
-              <button 
-                type="submit" 
-                form="purchase-form"
-                className="btn btn-primary flex-1 py-2 font-bold"
-              >
-                💾 {editMode ? 'Update Purchase' : 'SAVE PURCHASE'}
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { setShowModal(false); resetForm(); }} 
-                className="btn btn-secondary flex-1 py-2"
-              >
-                ❌ Cancel
-              </button>
-            </div>
-
             <form id="purchase-form" onSubmit={handleSubmit} className="space-y-4">
 
               {/* Bill Number and Supplier - 2 column layout */}
@@ -772,7 +754,22 @@ const Purchases = () => {
                 ></textarea>
               </div>
 
-              <div className="h-2"></div>
+              {/* SAVE AND CANCEL BUTTONS AT BOTTOM */}
+              <div className="flex gap-3 mt-6 pt-4 border-t-2 border-gray-200">
+                <button 
+                  type="submit"
+                  className="btn btn-primary flex-1 py-2 font-bold"
+                >
+                  💾 {editMode ? 'Update Purchase' : 'SAVE PURCHASE'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowModal(false); resetForm(); }} 
+                  className="btn btn-secondary flex-1 py-2"
+                >
+                  ❌ Cancel
+                </button>
+              </div>
             </form>
           </div>
         </div>

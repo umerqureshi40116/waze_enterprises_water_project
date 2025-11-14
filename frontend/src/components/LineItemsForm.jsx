@@ -136,7 +136,7 @@ const LineItemsForm = ({
               {items && items.length > 0 ? (
                 items.map(item => (
                   <option key={String(item.id)} value={String(item.id)}>
-                    {item.name} (ID: {item.id}) - Stock: {item.current_stock}
+                    {item.name} - Available: {item.current_stock}
                   </option>
                 ))
               ) : (

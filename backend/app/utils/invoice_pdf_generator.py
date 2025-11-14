@@ -420,16 +420,16 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
     # Generate PDF
     pdf_buffer = generator.generate_invoice_pdf(
         company_name="Waze Enterprises - Water Bottle Division",
-        company_address="Your Company Address",
-        company_phone="+92 XXX XXXXXXX",
-        company_email="info@waze-enterprises.com",
+        company_address="Street S-6, Rawat Industrial Area, Rawalpindi",
+        company_phone="0343-9998954",
+        company_email="",
         invoice_no=sale_bill.bill_number,
         invoice_date=sale_bill.date.strftime('%d-%m-%Y') if hasattr(sale_bill.date, 'strftime') else str(sale_bill.date),
         bill_to_name=customer.name if customer else "Unknown Customer",
         bill_to_address=customer.address if customer and hasattr(customer, 'address') else "",
         bill_to_contact=customer.phone if customer and hasattr(customer, 'phone') else "",
         items=pdf_items,
-        terms="Thank you for doing business with us!",
+        terms="",
         signature_line="Authorized Signatory",
         received_amount=received_amount,
         payment_status=payment_status
@@ -468,16 +468,16 @@ def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db)
     # Generate PDF
     pdf_buffer = generator.generate_invoice_pdf(
         company_name="Waze Enterprises - Water Bottle Division",
-        company_address="Your Company Address",
-        company_phone="+92 XXX XXXXXXX",
-        company_email="info@waze-enterprises.com",
+        company_address="Street S-6, Rawat Industrial Area, Rawalpindi",
+        company_phone="0343-9998954",
+        company_email="",
         invoice_no=purchase_bill.bill_number,
         invoice_date=purchase_bill.date.strftime('%d-%m-%Y') if hasattr(purchase_bill.date, 'strftime') else str(purchase_bill.date),
         bill_to_name=supplier.name if supplier else "Unknown Supplier",
         bill_to_address=supplier.address if supplier and hasattr(supplier, 'address') else "",
         bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
         items=pdf_items,
-        terms="Thank you for doing business with us!",
+        terms="",
         signature_line="Authorized Signatory",
         received_amount=received_amount,
         payment_status=payment_status
