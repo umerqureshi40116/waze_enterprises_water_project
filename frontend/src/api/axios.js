@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'https://waze-enterprises-water-project-backend.onrender.com/api/v1';
+// Determine the correct base URL based on environment
+let API_URL = import.meta.env.VITE_API_BASE_URL;
+
+if (!API_URL) {
+  // In production, dynamically construct URL using current protocol and host
+  // This ensures https:// is preserved on page refresh
+  const protocol = window.location.protocol; // 'https:' or 'http:'
+  const host = window.location.host; // 'domain.com'
+  API_URL = `${protocol}//${host}/api/v1`;
+}
+
+console.log('📡 API Base URL:', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
