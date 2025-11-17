@@ -116,7 +116,9 @@ function App() {
                   </AdminRoute>
                 }
               />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
       </KeepAliveManager>
