@@ -64,17 +64,38 @@ const Sales = () => {
         return;
       }
 
+      console.log('📡 Fetching sales data from:', api.defaults.baseURL);
+      
       const [salesRes, customersRes, itemsRes] = await Promise.all([
-        api.get('/sales'),
-        api.get('/customers'),
-        api.get('/stocks/items')
+        api.get('/sales').catch(err => {
+          console.error('❌ Sales API error:', err.message, err.response?.status, err.response?.data);
+          throw err;
+        }),
+        api.get('/customers').catch(err => {
+          console.error('❌ Customers API error:', err.message, err.response?.status, err.response?.data);
+          throw err;
+        }),
+        api.get('/stocks/items').catch(err => {
+          console.error('❌ Items API error:', err.message, err.response?.status, err.response?.data);
+          throw err;
+        })
       ]);
+
+      console.log('✅ Sales data fetched:', salesRes.data);
+      console.log('✅ Customers data fetched:', customersRes.data);
+      console.log('✅ Items data fetched:', itemsRes.data);
 
       setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
       setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
       setItems(Array.isArray(itemsRes.data) ? itemsRes.data : []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
+      console.error('📋 Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       toast.error('Failed to fetch sales data. Please check your login and server.');
       setSales([]);
       setCustomers([]);
