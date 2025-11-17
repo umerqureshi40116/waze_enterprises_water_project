@@ -201,48 +201,10 @@ async def reload_routes():
 # ===== SERVE REACT FRONTEND (SPA) =====
 # Mount frontend dist folder to serve React app
 from pathlib import Path
-import os
 
-# Try multiple path possibilities
-possible_paths = [
-    # Relative to this file: app/main.py -> frontend/dist
-    Path(__file__).parent.parent.parent / "frontend" / "dist",
-    # If running from backend directory
-    Path(__file__).parent.parent.parent.parent / "frontend" / "dist",
-    # Absolute path (for Render)
-    Path("/workspace/frontend/dist"),
-    Path("/app/frontend/dist"),
-    # Current working directory based
-    Path.cwd() / "frontend" / "dist",
-    Path.cwd().parent / "frontend" / "dist",
-]
-
-frontend_dist = None
-for path in possible_paths:
-    if path.exists() and path.is_dir():
-        frontend_dist = path
-        logger.info(f"✅ Found frontend dist at: {path}")
-        break
-
-if not frontend_dist:
-    logger.error(f"❌ Frontend dist NOT FOUND. Tried paths:")
-    for path in possible_paths:
-        logger.error(f"   ✗ {path} (exists: {path.exists()})")
-    logger.error(f"   Current working directory: {Path.cwd()}")
-    logger.error(f"   __file__ location: {Path(__file__)}")
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+    logger.info(f"✅ Frontend static files mounted from {frontend_dist}")
 else:
-    try:
-        # List contents for debugging
-        contents = list(frontend_dist.iterdir())
-        logger.info(f"📂 Dist folder contents ({len(contents)} items):")
-        for item in contents:
-            logger.info(f"   - {item.name} {'[DIR]' if item.is_dir() else f'[{item.stat().st_size} bytes]'}")
-        
-        # Mount the static files
-        app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
-        logger.info(f"✅ React SPA static files mounted successfully from {frontend_dist}")
-        logger.info(f"✅ All non-API routes will serve index.html for SPA routing")
-    except Exception as e:
-        logger.error(f"❌ Error mounting frontend: {e}")
-        import traceback
-        traceback.print_exc()
+    logger.warning(f"⚠️ Frontend dist folder not found at {frontend_dist}")
