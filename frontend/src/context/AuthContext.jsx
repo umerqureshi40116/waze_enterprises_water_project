@@ -8,19 +8,42 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-    
-    if (token && savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error('Failed to parse saved user:', e);
-        localStorage.removeItem('user');
+    // Validate and restore user session on app load
+    const validateAndSetUser = async () => {
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      if (token && savedUser) {
+        try {
+          // Parse saved user first
+          const parsedUser = JSON.parse(savedUser);
+          
+          // Verify token is still valid by checking with backend
+          try {
+            const response = await api.get('/auth/me', {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            // Token is valid, restore user
+            setUser(parsedUser);
+            console.log('✅ User session restored from token');
+          } catch (error) {
+            // Token is invalid or expired
+            console.log('❌ Token invalid, clearing auth');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            setUser(null);
+          }
+        } catch (e) {
+          console.error('Failed to parse saved user:', e);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setUser(null);
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    
+    validateAndSetUser();
   }, []);
 
   const login = async (username, password) => {
