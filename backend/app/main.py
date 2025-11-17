@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from sqlalchemy.orm import Session
 import logging
@@ -196,3 +197,14 @@ async def reload_routes():
         "routes_loaded": routes_loaded,
         "message": "Routes reloaded"
     }
+
+# ===== SERVE REACT FRONTEND (SPA) =====
+# Mount frontend dist folder to serve React app
+from pathlib import Path
+
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+    logger.info(f"✅ Frontend static files mounted from {frontend_dist}")
+else:
+    logger.warning(f"⚠️ Frontend dist folder not found at {frontend_dist}")
