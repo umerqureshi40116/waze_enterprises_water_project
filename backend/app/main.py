@@ -1,6 +1,7 @@
-from fastapi import FastAPI, APIRouter, Depends, Request
+from fastapi import FastAPI, APIRouter, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from app.core.config import settings
 from sqlalchemy.orm import Session
 import logging
@@ -201,10 +202,45 @@ async def reload_routes():
 # ===== SERVE REACT FRONTEND (SPA) =====
 # Mount frontend dist folder to serve React app
 from pathlib import Path
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import FileResponse
+import mimetypes
 
 frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+class SPAMiddleware(BaseHTTPMiddleware):
+    """Middleware to serve React app for all non-API routes"""
+    async def dispatch(self, request, call_next):
+        # Let routers handle API routes
+        path = request.url.path
+        
+        # Check if it's an API route or docs
+        if path.startswith("/api") or path in ["/docs", "/redoc", "/openapi.json"]:
+            return await call_next(request)
+        
+        # Check if it's a static file
+        if path.startswith("/dist/") or path.startswith("/assets/"):
+            return await call_next(request)
+        
+        # For all other routes, check if file exists
+        file_path = frontend_dist / path.lstrip("/")
+        if file_path.exists() and file_path.is_file():
+            # Serve the file
+            return FileResponse(file_path)
+        
+        # If no file found, serve index.html for SPA routing
+        index_file = frontend_dist / "index.html"
+        if index_file.exists():
+            logger.debug(f"📄 Serving index.html for SPA route: {path}")
+            return FileResponse(index_file, media_type="text/html")
+        
+        # If index.html doesn't exist, let the request proceed (will 404)
+        return await call_next(request)
+
+# Add SPA middleware after routes are registered
+# This must come AFTER API routes so they take precedence
 if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
-    logger.info(f"✅ Frontend static files mounted from {frontend_dist}")
+    logger.info(f"✅ SPA middleware configured to serve from {frontend_dist}")
+    app.add_middleware(SPAMiddleware)
 else:
     logger.warning(f"⚠️ Frontend dist folder not found at {frontend_dist}")
