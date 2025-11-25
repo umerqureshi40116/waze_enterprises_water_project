@@ -8,18 +8,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Optimize connection pool for Render/Neon
-# Detect environment: use NullPool for Render/production by default
+# Optimize connection pool for Railway/Render/Neon
+# Detect environment: use NullPool for Railway/Render/production by default
 environment = os.getenv("ENVIRONMENT", "development")
+is_railway = "RAILWAY_ENVIRONMENT_ID" in os.environ  # Railway sets this automatically
 is_render = "RENDER" in os.environ or "onrender.com" in os.getenv("DATABASE_URL", "")
 
-logger.info(f"🔧 Environment: {environment}, Is Render: {is_render}")
+logger.info(f"🔧 Environment: {environment}, Is Railway: {is_railway}, Is Render: {is_render}")
 
-# Use NullPool for Render/production, QueuePool for local development
-if is_render or environment == "production":
-    # Production/Render: Use NullPool to avoid connection pooling issues
+# Use NullPool for Railway/Render/production, QueuePool for local development
+if is_railway or is_render or environment == "production":
+    # Production/Railway/Render: Use NullPool to avoid connection pooling issues
     # Neon handles connection management, we just create fresh connections
-    logger.info("🔧 Using NullPool for Render/production (Neon serverless)")
+    logger.info("🔧 Using NullPool for Railway/Render/production (Neon serverless)")
     engine = create_engine(
         settings.DATABASE_URL,
         poolclass=NullPool,
