@@ -11,5 +11,5 @@ COPY backend/app ./app
 
 EXPOSE 8000
 
-# Start the application - hardcoded port
+# Start the application - hardcoded port (no cd command)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
