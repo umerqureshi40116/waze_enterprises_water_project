@@ -20,7 +20,7 @@ export const useKeepAlive = () => {
     try {
       // Use full URL since keep-alive is at root level, not under /api/v1
       const baseBackendURL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 
-                             'https://waze-enterprises-water-project-backend.onrender.com';
+                             'https://wazeenterpriseswaterproject-production.up.railway.app';
       await axios.get(`${baseBackendURL}/keep-alive`, { timeout: 5000 });
       console.log('✅ Keep-alive ping sent to backend');
       lastPingRef.current = Date.now();
