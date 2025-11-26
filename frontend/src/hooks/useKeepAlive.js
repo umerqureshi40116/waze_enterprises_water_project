@@ -18,11 +18,9 @@ export const useKeepAlive = () => {
 
   const sendKeepAlivePing = async () => {
     try {
-      // Use full URL since keep-alive is at root level, not under /api/v1
-      const baseBackendURL = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 
-                             'https://wazeenterpriseswaterproject-production.up.railway.app';
-      await axios.get(`${baseBackendURL}/keep-alive`, { timeout: 5000 });
-      console.log('✅ Keep-alive ping sent to backend');
+      // Railway doesn't need keep-alive (always running, not serverless)
+      // Skip the ping to avoid CORS errors
+      console.log('✅ Keep-alive disabled for Railway');
       lastPingRef.current = Date.now();
     } catch (error) {
       console.error('❌ Keep-alive ping failed:', error.message);
