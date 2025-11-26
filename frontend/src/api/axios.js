@@ -4,11 +4,8 @@ import axios from 'axios';
 let API_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!API_URL) {
-  // In production, dynamically construct URL using current protocol and host
-  // This ensures https:// is preserved on page refresh
-  const protocol = window.location.protocol; // 'https:' or 'http:'
-  const host = window.location.host; // 'domain.com'
-  API_URL = `${protocol}//${host}/api/v1`;
+  // Fallback to Railway backend URL (must be HTTPS for Vercel)
+  API_URL = 'https://wazeenterpriseswaterproject-production.up.railway.app/api/v1';
 }
 
 console.log('📡 API Base URL:', API_URL);
