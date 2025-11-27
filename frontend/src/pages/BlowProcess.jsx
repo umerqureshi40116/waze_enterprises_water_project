@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, Download, FileDown } from 'lucide-react';
 import { generateBlowId } from '../utils/idGenerator';
 import { useAuth } from '../context/AuthContext';
+import ItemSelect from '../components/ItemSelect';
 
 const BlowProcess = () => {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ const BlowProcess = () => {
     notes: ''
   });
 
-  // Initialize blow ID on component mount
+  // Initialize component on mount and ensure items load when blows are fetched
   useEffect(() => {
     const initializeBlowId = async () => {
       const blowId = await generateBlowId();
@@ -32,6 +33,23 @@ const BlowProcess = () => {
     fetchData();
   }, []);
 
+  // Ensure items are loaded when component mounts or blows are updated
+  useEffect(() => {
+    if (blows.length > 0 && items.length === 0) {
+      console.log('📦 Blows exist but items not loaded, fetching items...');
+      const fetchItems = async () => {
+        try {
+          const itemsRes = await api.get('/stocks/items');
+          setItems(itemsRes.data);
+          console.log('📦 Items loaded:', itemsRes.data);
+        } catch (error) {
+          console.error('Failed to fetch items:', error);
+        }
+      };
+      fetchItems();
+    }
+  }, [blows, items.length]);
+
   const fetchData = async () => {
     try {
       const [blowsRes, itemsRes] = await Promise.all([
@@ -40,7 +58,12 @@ const BlowProcess = () => {
       ]);
       setBlows(blowsRes.data);
       setItems(itemsRes.data);
+      console.log('📊 Items fetched from /stocks/items:', itemsRes.data);
+      if (itemsRes.data && itemsRes.data.length > 0) {
+        console.log('📊 First item structure:', itemsRes.data[0]);
+      }
     } catch (error) {
+      console.error('Fetch error:', error);
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
@@ -50,10 +73,10 @@ const BlowProcess = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Auto-set to_item_id from the preform selection
+      // Use manually selected bottle if provided, otherwise use auto-selected bottle
       const dataToSubmit = {
         ...formData,
-        to_item_id: autoSelectedBottle?.id || null  // Will be set by backend if not provided
+        to_item_id: formData.to_item_id || autoSelectedBottle?.id || null  // Manual > Auto > Backend determination
       };
       
       if (editMode) {
@@ -109,14 +132,17 @@ const BlowProcess = () => {
     setEditMode(false);
   };
 
+  // Allow all items to be selectable - items can come from purchases or pre-seeded
   const preforms = items.filter(item => item.type === 'preform');
   const bottles = items.filter(item => item.type === 'bottle');
+  const allItems = items;  // All items available for selection (purchases + preforms + bottles)
 
-  // Get available preform quantity for selected item
+  // Get available preform quantity for selected item - FOR DISPLAY ONLY, NOT VALIDATION
   const availablePreformQty = (() => {
     try {
       const preform = items.find(i => i.id === formData.from_item_id);
-      return preform ? (preform.current_stock ?? 0) : 0;
+      if (!preform) return 0;
+      return preform.current_stock ?? preform.quantity ?? preform.stock ?? 0;
     } catch (e) {
       return 0;
     }
@@ -140,8 +166,9 @@ const BlowProcess = () => {
     i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
   ) : null;
   
-  // Save is disabled if: no preform, no matching bottle, no input qty, or insufficient stock
-  const saveDisabled = !formData.from_item_id || !autoSelectedBottle || inputQtyNum <= 0 || inputQtyNum > availablePreformQty;
+  // Save is disabled if: no preform, no bottle (auto or manual), or no input qty
+  // Stock validation is done on backend - we don't validate here
+  const saveDisabled = !formData.from_item_id || (!formData.to_item_id && !autoSelectedBottle) || inputQtyNum <= 0;
 
   // ✅ Currency formatter for PKR
   const formatPKR = (amount) => {
@@ -193,9 +220,24 @@ const BlowProcess = () => {
     return preform?.available_quantity || preform?.quantity || 0;
   };
 
+  // Create a map for faster lookups
+  const itemMap = useMemo(() => {
+    const map = {};
+    items.forEach(item => {
+      map[item.id] = item.name;
+    });
+    console.log('📊 ItemMap created with', Object.keys(map).length, 'items');
+    return map;
+  }, [items]);
+
   const getItemName = (itemId) => {
-    const item = items.find(i => i.id === itemId);
-    return item ? item.name : itemId;
+    if (!itemId) return '—';
+    if (itemMap[itemId]) {
+      return itemMap[itemId];
+    }
+    // Log if item not found for debugging
+    console.warn('❌ Item not found in itemMap:', itemId, 'Available items:', Object.keys(itemMap));
+    return '?';  // Show question mark instead of UUID
   };
 
   const downloadExcelAll = async () => {
@@ -385,20 +427,47 @@ const BlowProcess = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">From (Preform)</label>
-                <select
-                  value={formData.from_item_id}
-                  onChange={(e) => setFormData({ ...formData, from_item_id: e.target.value })}
-                  className="input"
-                  required
-                >
-                  <option value="">Select Preform</option>
-                  {preforms.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">From (Item - type to search or add)</label>
+                <ItemSelect
+                  items={allItems}
+                  value={formData.from_item_id ? items.find(i => i.id === formData.from_item_id)?.name || '' : ''}
+                  onChange={async (selectedName) => {
+                    console.log('🔄 BlowProcess item select (From):', selectedName);
+                    
+                    try {
+                      // Try to find existing preform
+                      const existingPreform = preforms.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+                      
+                      if (existingPreform) {
+                        console.log('✅ Found existing preform:', existingPreform.id);
+                        setFormData({ ...formData, from_item_id: existingPreform.id });
+                      } else {
+                        // Auto-create new preform with default type
+                        console.log('📝 Creating new preform:', selectedName);
+                        const response = await api.post('/stocks/items/auto-create', { 
+                          name: selectedName,
+                          type: 'preform'
+                        });
+                        const newPreform = response.data.item;
+                        console.log('✅ Auto-created preform:', newPreform.id);
+                        setFormData({ ...formData, from_item_id: newPreform.id });
+                        
+                        // Refresh items list to include new preform
+                        try {
+                          const itemsRes = await api.get('/stocks/items');
+                          setItems(itemsRes.data);  // ✅ Update state with new items list
+                          console.log('✅ Items list refreshed with new preform');
+                        } catch (err) {
+                          console.warn('Could not refresh items list:', err);
+                        }
+                      }
+                    } catch (error) {
+                      console.error('❌ Error with preform selection:', error.response?.data || error.message);
+                      toast.error(error.response?.data?.detail || 'Error processing preform selection');
+                    }
+                  }}
+                  placeholder="🔍 Select or type preform name..."
+                />
                 {formData.from_item_id && (
                   <p className="text-sm text-gray-600 mt-1">
                     Available: <span className="font-medium">{availablePreformQty}</span>
@@ -406,25 +475,79 @@ const BlowProcess = () => {
                 )}
               </div>
 
-              {/* Auto-selected bottle display (no select needed) */}
+              {/* Bottle selection with auto-suggest or manual override */}
               {formData.from_item_id && (() => {
                 const selectedPreform = items.find(i => i.id === formData.from_item_id);
                 const autoBottle = selectedPreform ? items.find(i => 
                   i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
                 ) : null;
                 
+                // Get all items for ItemSelect (not just bottles)
+                const allSelectableItems = items;
+                
                 return (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">To (Bottle - Auto Selected)</label>
-                    <div className="input bg-gray-50 flex items-center justify-between">
-                      <span className="text-gray-700">
-                        {autoBottle ? autoBottle.name : <span className="text-red-600">❌ No matching bottle found</span>}
-                      </span>
-                      {autoBottle && <span className="text-green-600 text-sm">✓ Auto</span>}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">To (Item - type to search or add)</label>
+                    <div className="space-y-2">
+                      <ItemSelect
+                        items={allSelectableItems}
+                        value={formData.to_item_id ? items.find(i => i.id === formData.to_item_id)?.name || '' : (autoBottle?.name || '')}
+                        onChange={async (selectedName) => {
+                          console.log('🔄 BlowProcess item select (To):', selectedName);
+                          
+                          try {
+                            // Try to find existing bottle
+                            const existingBottle = bottles.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+                            
+                            if (existingBottle) {
+                              console.log('✅ Found existing bottle:', existingBottle.id);
+                              setFormData({ ...formData, to_item_id: existingBottle.id });
+                            } else {
+                              // Auto-create new bottle with preform's size/grade if available
+                              console.log('📝 Creating new bottle:', selectedName);
+                              const bottleData = { 
+                                name: selectedName,
+                                type: 'bottle'
+                              };
+                              
+                              // Inherit size and grade from preform if available
+                              if (selectedPreform) {
+                                bottleData.size = selectedPreform.size;
+                                bottleData.grade = selectedPreform.grade;
+                              }
+                              
+                              const response = await api.post('/stocks/items/auto-create', bottleData);
+                              const newBottle = response.data.item;
+                              console.log('✅ Auto-created bottle:', newBottle.id);
+                              setFormData({ ...formData, to_item_id: newBottle.id });
+                              
+                              // Refresh items list to include new bottle
+                              try {
+                                const itemsRes = await api.get('/stocks/items');
+                                setItems(itemsRes.data);  // ✅ Update state with new items list
+                                console.log('✅ Items list refreshed with new bottle');
+                              } catch (err) {
+                                console.warn('Could not refresh items list:', err);
+                              }
+                            }
+                          } catch (error) {
+                            console.error('❌ Error with bottle selection:', error.response?.data || error.message);
+                            toast.error(error.response?.data?.detail || 'Error processing bottle selection');
+                          }
+                        }}
+                        placeholder="🔍 Select or type bottle name..."
+                      />
+                      {autoBottle && !formData.to_item_id && (
+                        <p className="text-xs text-green-600">💡 Tip: Auto-matched to <strong>{autoBottle.name}</strong> (same size/grade as preform)</p>
+                      )}
+                      {formData.to_item_id && (
+                        <p className="text-xs text-blue-600">✓ Bottle selected: <strong>{items.find(i => i.id === formData.to_item_id)?.name}</strong></p>
+                      )}
                     </div>
                   </div>
                 );
               })()}
+
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Input Quantity</label>
@@ -440,13 +563,8 @@ const BlowProcess = () => {
                 />
                 {formData.input_quantity && formData.from_item_id && (
                   <div className="text-sm text-gray-600 mt-1">
-                    {inputQtyNum > availablePreformQty ? (
-                      <p className="text-red-600 font-medium">❌ Insufficient stock (Available: {availablePreformQty})</p>
-                    ) : (
-                      <p className="text-green-600 font-medium">✅ Sufficient stock</p>
-                    )}
-                    {autoSelectedBottle && (
-                      <p className="mt-1 text-gray-700">📦 Output: ~{calculateOutputQty(inputQtyNum, formData.from_item_id, autoSelectedBottle.id)} units (95% efficiency)</p>
+                    {(formData.to_item_id || autoSelectedBottle) && (
+                      <p className="mt-1 text-gray-700">📦 Output: ~{calculateOutputQty(inputQtyNum, formData.from_item_id, formData.to_item_id || autoSelectedBottle.id)} units (95% efficiency)</p>
                     )}
                   </div>
                 )}
@@ -481,7 +599,7 @@ const BlowProcess = () => {
                   className="btn btn-primary flex-1"
                   disabled={saveDisabled}
                 >
-                  {inputQtyNum > availablePreformQty ? '❌ Insufficient Stock' : (editMode ? 'Update Process' : 'Process')}
+                  {editMode ? 'Update Process' : 'Process'}
                 </button>
                 <button
                   type="button"

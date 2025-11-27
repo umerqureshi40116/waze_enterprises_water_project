@@ -137,7 +137,7 @@ class InvoiceReportGenerator:
             logo_path = os.path.join(project_root, 'Waze_logo.png')
             if os.path.exists(logo_path):
                 # Scale logo to 2.0 x 1.0 inch for better appearance
-                logo_element = Image(logo_path, width=3.0*inch, height=1.0*inch)
+                logo_element = Image(logo_path, width=2.5*inch, height=1*inch)
         except Exception as e:
             pass
         
@@ -220,7 +220,7 @@ class InvoiceReportGenerator:
             Paragraph(bill_to_name, self.styles['Normal']),
             Paragraph(bill_to_address, self.styles['Normal']),
             Spacer(1, 5),
-            Paragraph(f"<b>Contact No.:</b> {bill_to_contact}", self.styles['Normal']),
+            #Paragraph(f"<b>Contact No.:</b> {bill_to_contact}", self.styles['Normal']),
         ]
         
         right_col = [
@@ -228,7 +228,7 @@ class InvoiceReportGenerator:
             Table([
                 [Paragraph("<b>Invoice No.:</b>", self.styles['Normal']), Paragraph(str(invoice_no), self.styles['Normal'])],
                 [Paragraph("<b>Date:</b>", self.styles['Normal']), Paragraph(str(invoice_date), self.styles['Normal'])],
-            ], colWidths=[2*inch, 2*inch]),
+            ], colWidths=[1.2*inch, 1.2*inch]),
         ]
         
         details_table = Table([
@@ -348,41 +348,101 @@ class InvoiceReportGenerator:
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         story.append(total_box)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 50))  # Increased from 20 to 50 for more space after red box
         
         # ===== SIGNATURE =====
-        story.append(Spacer(1, 30))
-        story.append(Paragraph(signature_line, self.styles['Normal']))
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 20))  # Reduced from 30 to 20 since we added space above
         
-        # Add signature image if it exists (true left alignment)
-        signature_path = r"E:\water\zeeshan_signature.png"
-        if os.path.exists(signature_path):
-            try:
-                signature_img = Image(signature_path, width=1.5*inch, height=0.75*inch)
-                # Create a left-aligned paragraph style wrapper
-                sig_style = ParagraphStyle(
-                    'LeftAligned',
-                    parent=self.styles['Normal'],
-                    alignment=0,  # 0 = left, 1 = center, 2 = right
-                )
-                # Create a minimal table that doesn't center
-                sig_table = Table([[signature_img]], colWidths=[7*inch])
-                sig_table.setStyle(TableStyle([
-                    ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-                    ('VALIGN', (0, 0), (0, 0), 'TOP'),
-                    ('LEFTPADDING', (0, 0), (0, 0), 0),
-                    ('RIGHTPADDING', (0, 0), (0, 0), 0),
-                    ('TOPPADDING', (0, 0), (0, 0), 0),
-                    ('BOTTOMPADDING', (0, 0), (0, 0), 0),
-                    ('BORDER', (0, 0), (0, 0), 0, colors.white),
-                ]))
-                story.append(sig_table)
-                story.append(Spacer(1, 5))
-            except Exception as e:
-                print(f"Warning: Could not load signature image: {e}")
+        # Try to load signature images
+        zeeshan_sig_element = None
+        waheed_sig_element = None
         
-        story.append(Paragraph("_" * 40, self.styles['Normal']))
+        try:
+            # Zeeshan signature
+            utils_dir = os.path.dirname(__file__)
+            app_dir = os.path.dirname(utils_dir)
+            sig_path = os.path.join(app_dir, 'static', 'uploads', 'zeeshan_signature.png')
+            if os.path.exists(sig_path):
+                # Load with width=2.0 inches and height 3 inches for larger display
+                zeeshan_sig_element = Image(sig_path, width=2.2*inch, height=1.4*inch)
+                print(f"✓ Zeeshan signature loaded: {sig_path} (2.0\" x 3.0\")")
+            else:
+                print(f"✗ Zeeshan signature not found: {sig_path}")
+        except Exception as e:
+            print(f"✗ Error loading Zeeshan signature: {str(e)}")
+        
+        try:
+            # Waheed signature
+            utils_dir = os.path.dirname(__file__)
+            app_dir = os.path.dirname(utils_dir)
+            sig_path = os.path.join(app_dir, 'static', 'uploads', 'Waheed_sign.png')
+            if os.path.exists(sig_path):
+                # Load with width=1.5 inches and height=1.5 inches for larger display
+                waheed_sig_element = Image(sig_path, width=2*inch, height=1.2*inch)
+                print(f"✓ Waheed signature loaded: {sig_path} (2\" x 1.2\")")
+            else:
+                print(f"✗ Waheed signature not found: {sig_path}")
+        except Exception as e:
+            print(f"✗ Error loading Waheed signature: {str(e)}")
+        
+        # Create signature section - Images and lines on separate rows
+        sig_line = "_" * 20
+        
+        # Row 1: Signature Images
+        sig_images_data = [
+            [zeeshan_sig_element or '', waheed_sig_element or '']
+        ]
+        
+        # Row 2: Signature Lines (horizontally aligned)
+        left_line = Paragraph(sig_line, self.styles['Normal'])
+        right_line = Paragraph(sig_line, ParagraphStyle('RightAlign', parent=self.styles['Normal'], alignment=2))
+        sig_lines_data = [
+            [left_line, right_line]
+        ]
+        
+        # Row 3: Labels (horizontally aligned)
+        left_label = Paragraph("<b>Admin Signature</b>", self.styles['Normal'])
+        right_label = Paragraph("<b>Authorized by Waheed</b>", ParagraphStyle('RightAlign', parent=self.styles['Normal'], alignment=2))
+        sig_labels_data = [
+            [left_label, right_label]
+        ]
+        
+        # Create three separate tables for clean horizontal alignment
+        sig_images_table = Table(sig_images_data, colWidths=[2.0*inch, 5.0*inch])
+        sig_images_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('BORDER', (0, 0), (-1, -1), 0),
+        ]))
+        
+        sig_lines_table = Table(sig_lines_data, colWidths=[2.0*inch, 5.0*inch])
+        sig_lines_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('BORDER', (0, 0), (-1, -1), 0),
+        ]))
+        
+        sig_labels_table = Table(sig_labels_data, colWidths=[2.0*inch, 5.0*inch])
+        sig_labels_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+            ('BORDER', (0, 0), (-1, -1), 0),
+        ]))
+        
+        story.append(sig_images_table)
+        story.append(Spacer(1, 5))
+        story.append(sig_lines_table)
+        story.append(Spacer(1, 3))
+        story.append(sig_labels_table)
         
         # Build PDF
         doc.build(story)
@@ -430,7 +490,6 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
         bill_to_contact=customer.phone if customer and hasattr(customer, 'phone') else "",
         items=pdf_items,
         terms="",
-        signature_line="Authorized Signatory",
         received_amount=received_amount,
         payment_status=payment_status
     )
@@ -478,7 +537,6 @@ def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db)
         bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
         items=pdf_items,
         terms="",
-        signature_line="Authorized Signatory",
         received_amount=received_amount,
         payment_status=payment_status
     )

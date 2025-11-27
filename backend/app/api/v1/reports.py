@@ -170,20 +170,20 @@ async def download_multiple_bills(
         c.setFillColor(band_color)
         c.rect(0, height - header_h, width, header_h, stroke=0, fill=1)
 
-        # optional logo (static/logo.png relative to repo root)
+        # optional logo (Waze_logo.png relative to repo root) - DISABLED
         logo_w = 0
-        try:
-            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-            logo_path = os.path.join(repo_root, 'static', 'logo.png')
-            if os.path.exists(logo_path):
-                logo_w = 48
-                logo_h = 48
-                logo_x = margin_left
-                logo_y = height - header_h + (header_h - logo_h) / 2
-                c.drawImage(logo_path, logo_x, logo_y, width=logo_w, height=logo_h, mask='auto')
-        except Exception:
-            logo_w = 0
-            pass
+        # try:
+        #     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        #     logo_path = os.path.join(repo_root, 'Waze_logo.png')
+        #     if os.path.exists(logo_path):
+        #         logo_w = 8
+        #         logo_h = 8
+        #         logo_x = margin_left
+        #         logo_y = height - header_h + (header_h - logo_h) / 2
+        #         c.drawImage(logo_path, logo_x, logo_y, width=logo_w, height=logo_h, mask='auto')
+        # except Exception:
+        #     logo_w = 0
+        #     pass
 
         # Left-aligned company branding (name + tagline) to the right of the logo
         left_x = margin_left + (logo_w + 8 if logo_w else 0)
@@ -218,20 +218,20 @@ async def download_multiple_bills(
         c.setFillColor(band_color)
         c.rect(0, height - band_h, width, band_h, stroke=0, fill=1)
 
-        # optional logo
+        # optional logo - DISABLED
         logo_w = 0
-        try:
-            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-            logo_path = os.path.join(repo_root, 'static', 'logo.png')
-            if os.path.exists(logo_path):
-                logo_w = 48
-                logo_h = 48
-                logo_x = margin_left
-                logo_y = height - band_h + (band_h - logo_h) / 2
-                c.drawImage(logo_path, logo_x, logo_y, width=logo_w, height=logo_h, mask='auto')
-        except Exception:
-            logo_w = 0
-            pass
+        # try:
+        #     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+        #     logo_path = os.path.join(repo_root, 'Waze_logo.png')
+        #     if os.path.exists(logo_path):
+        #         logo_w = 8
+        #         logo_h = 8
+        #         logo_x = margin_left
+        #         logo_y = height - band_h + (band_h - logo_h) / 2
+        #         c.drawImage(logo_path, logo_x, logo_y, width=logo_w, height=logo_h, mask='auto')
+        # except Exception:
+        #     logo_w = 0
+        #     pass
 
         # Left-aligned company branding (name + tagline) to the right of the logo
         left_x = margin_left + (logo_w + 8 if logo_w else 0)
@@ -517,6 +517,16 @@ async def download_multiple_bills(
                     c.drawImage(signature_admin, admin_x, sig_y, width=sig_w, height=sig_h, mask='auto')
                 except Exception:
                     pass
+
+            # Admin Signature (center)
+            admin_sig_x = margin_left + (width - margin_left - margin_right - sig_w) / 2
+            c.drawString(admin_sig_x, sig_y + sig_h + 8, "Admin Signature")
+            # Placeholder for admin signature image - will be added later
+            # if signature_admin_center and os.path.exists(signature_admin_center):
+            #     try:
+            #         c.drawImage(signature_admin_center, admin_sig_x, sig_y, width=sig_w, height=sig_h, mask='auto')
+            #     except Exception:
+            #         pass
 
             # CEO signature (right)
             ceo_x = width - margin_right - sig_w
@@ -1010,8 +1020,10 @@ async def generate_weekly_report(
     ).scalar()
     blow_costs = float(blow_costs) if blow_costs else 0.0
 
-    # Calculate sales blow price costs
-    sales_blow_costs = db.query(func.sum(Sale.blow_price * Sale.quantity)).filter(
+    # Calculate sales blow price costs (from SaleLineItem, not Sale)
+    sales_blow_costs = db.query(func.sum(SaleLineItem.blow_price * SaleLineItem.quantity)).join(
+        Sale, SaleLineItem.bill_number == Sale.bill_number
+    ).filter(
         Sale.date >= week_start,
         Sale.date < week_end,
         Sale.status != 'cancelled'

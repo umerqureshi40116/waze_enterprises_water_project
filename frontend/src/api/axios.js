@@ -23,6 +23,10 @@ api.interceptors.request.use(config => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Don't force JSON content-type for blob requests
+  if (!config.responseType || config.responseType !== 'blob') {
+    config.headers['Content-Type'] = 'application/json';
+  }
   return config;
 });
 

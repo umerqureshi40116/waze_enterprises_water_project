@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 from app.db.database import get_db
 from app.core.security import get_current_user
@@ -124,9 +125,90 @@ async def get_all_items(
     
     return result
 
+@router.post("/items/auto-create")
+async def auto_create_item(
+    item_data: dict = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Auto-create or fetch item by name (with optional type/size/grade)
+    
+    If item exists (case-insensitive), returns existing item.
+    If not, creates new item with provided name and defaults for missing fields.
+    """
+    if not item_data.get("name"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Item name is required"
+        )
+    
+    name = item_data["name"].strip()
+    item_type = item_data.get("type", "bottle")  # Default to 'bottle' instead of 'generic'
+    size = item_data.get("size", "standard")
+    grade = item_data.get("grade", "A")
+    unit = item_data.get("unit", "pcs")
+    
+    # Check if item exists (case-insensitive by name)
+    existing_item = db.query(Item).filter(
+        func.lower(Item.name) == func.lower(name)
+    ).first()
+    
+    if existing_item:
+        # Get current stock
+        stock = db.query(Stock).filter(Stock.item_id == existing_item.id).first()
+        current_stock = stock.quantity if stock else 0
+        
+        return {
+            "message": "Item found",
+            "item": {
+                "id": existing_item.id,
+                "name": existing_item.name,
+                "type": existing_item.type,
+                "size": existing_item.size,
+                "grade": existing_item.grade,
+                "unit": existing_item.unit,
+                "current_stock": current_stock
+            },
+            "created": False
+        }
+    
+    # Create new item
+    import uuid
+    new_item = Item(
+        id=str(uuid.uuid4()),
+        name=name,
+        type=item_type,
+        size=size,
+        grade=grade,
+        unit=unit
+    )
+    db.add(new_item)
+    
+    # Create stock entry with 0 quantity
+    new_stock = Stock(item_id=new_item.id, quantity=0)
+    db.add(new_stock)
+    
+    db.commit()
+    db.refresh(new_item)
+    
+    # Return as dict to ensure proper serialization
+    return {
+        "message": "Item created",
+        "item": {
+            "id": new_item.id,
+            "name": new_item.name,
+            "type": new_item.type,
+            "size": new_item.size,
+            "grade": new_item.grade,
+            "unit": new_item.unit,
+            "current_stock": 0
+        },
+        "created": True
+    }
+
 @router.post("/items", status_code=status.HTTP_201_CREATED)
 async def create_item(
-    item_data: dict,
+    item_data: dict = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

@@ -78,11 +78,14 @@ const Reports = () => {
 
   const downloadWeeklyReport = async (weekOffset) => {
     try {
+      console.log('📥 Downloading weekly report with offset:', weekOffset);
       const response = await api.get(`/reports/export-excel?week_offset=${weekOffset}`, {
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      console.log('✅ Response received:', response.status, response.data.size, 'bytes');
+      
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       
@@ -90,34 +93,41 @@ const Reports = () => {
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
-      link.parentElement.removeChild(link);
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       toast.success('Report downloaded!');
+      console.log('✅ Weekly report downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download report');
-      console.error(error);
+      console.error('❌ Download error:', error.response?.status, error.response?.data, error.message);
+      toast.error(error.response?.data?.detail || 'Failed to download report');
     }
   };
 
   const downloadDailyReport = async () => {
     try {
       setDownloadingDaily(true);
+      console.log('📥 Downloading daily report for date:', selectedDate);
       const response = await api.get(`/reports/export-excel?date=${selectedDate}`, {
         responseType: 'blob'
       });
       
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      console.log('✅ Response received:', response.status, response.data.size, 'bytes');
+      
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `daily-report-${selectedDate}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentElement.removeChild(link);
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
-      toast.success(`Daily report for ${selectedDate} downloaded!`);
+      toast.success('Report downloaded!');
+      console.log('✅ Daily report downloaded successfully');
     } catch (error) {
-      toast.error('Failed to download daily report');
-      console.error(error);
+      console.error('❌ Download error:', error.response?.status, error.response?.data, error.message);
+      toast.error(error.response?.data?.detail || 'Failed to download report');
     } finally {
       setDownloadingDaily(false);
     }

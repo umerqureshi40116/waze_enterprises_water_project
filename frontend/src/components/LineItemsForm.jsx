@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../utils/currency';
+import ItemSelect from './ItemSelect';
+import api from '../api/axios';
 
 const LineItemsForm = ({ 
   lineItems, 
   onLineItemsChange, 
   items,
-  isSale = false  // If true, show blow_price column
+  isSale = false,  // If true, show blow_price column
+  onNewItemCreated = null  // Callback when a new item is created
 }) => {
   const [currentItem, setCurrentItem] = useState({
     item_id: '',
@@ -116,34 +119,47 @@ const LineItemsForm = ({
         <div className={lineItems.length > 0 ? "space-y-2" : "space-y-3"}>
           {/* Item Selection Row */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Item *</label>
-            <div style={{ position: 'relative', zIndex: 100 }}>
-              <select
-                value={String(currentItem.item_id || '')}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  console.log('🔄 SELECT CHANGED EVENT FIRED');
-                  console.log('   New value:', `"${value}"`);
-                  console.log('   Value type:', typeof value);
-                  console.log('   Selected option:', e.target.options[e.target.selectedIndex]?.text);
-                  console.log('   Setting item_id to:', value);
-                  setCurrentItem({ ...currentItem, item_id: value });
-                }}
-                className="input"
-                style={{ position: 'relative', zIndex: 101, fontSize: '0.875rem' }}
-              >
-              <option value="">📦 Select Item...</option>
-              {items && items.length > 0 ? (
-                items.map(item => (
-                  <option key={String(item.id)} value={String(item.id)}>
-                    {item.name} - Available: {item.current_stock}
-                  </option>
-                ))
-              ) : (
-                <option disabled>No items available</option>
-              )}
-              </select>
-            </div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Item * (type to search or add new)</label>
+            <ItemSelect
+              items={items}
+              value={currentItem.item_id ? items.find(i => i.id === currentItem.item_id)?.name || '' : ''}
+              onChange={async (selectedName) => {
+                console.log('🔄 ItemSelect CHANGED:', selectedName);
+                
+                try {
+                  // Try to find existing item by name
+                  const existingItem = items.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+                  
+                  if (existingItem) {
+                    console.log('✅ Found existing item:', existingItem.id);
+                    setCurrentItem({ ...currentItem, item_id: existingItem.id });
+                  } else {
+                    // Auto-create new item
+                    console.log('📝 Creating new item:', selectedName);
+                    const response = await api.post('/stocks/items/auto-create', { name: selectedName });
+                    console.log('✅ Auto-create response:', response.data);
+                    const newItem = response.data.item;
+                    if (!newItem || !newItem.id) {
+                      throw new Error('Invalid response: missing item data');
+                    }
+                    console.log('✅ Auto-created item:', newItem.id);
+                    setCurrentItem({ ...currentItem, item_id: newItem.id });
+                    
+                    // Call parent callback to update items list
+                    if (onNewItemCreated) {
+                      onNewItemCreated(newItem);
+                      console.log('✅ Called onNewItemCreated callback');
+                    }
+                  }
+                } catch (error) {
+                  console.error('❌ Full error object:', error);
+                  console.error('❌ Error response data:', error.response?.data);
+                  console.error('❌ Error message:', error.message);
+                  toast.error(error.response?.data?.detail || error.message || 'Error processing item selection');
+                }
+              }}
+              placeholder="📦 Select or type item name..."
+            />
           </div>
 
           {/* Quantity and Price Row - Compact */}

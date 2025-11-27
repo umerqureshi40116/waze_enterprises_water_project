@@ -693,6 +693,10 @@ const Purchases = () => {
                   });
                 }}
                 items={items}
+                onNewItemCreated={(newItem) => {
+                  console.log('✅ New item created in LineItemsForm:', newItem);
+                  setItems([...items, newItem]);
+                }}
                 isSale={false}
               />
 

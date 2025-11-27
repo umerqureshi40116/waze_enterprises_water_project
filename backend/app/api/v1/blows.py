@@ -29,6 +29,13 @@ async def create_blow_process(
     if not from_stock:
         raise HTTPException(status_code=400, detail="Preform item not found in stock")
     
+    # ✅ ALLOW NEGATIVE STOCK: Removed insufficent stock check - stock can go into minus
+    # if from_stock.quantity < blow.input_quantity:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail=f"Insufficient preform stock. Required: {blow.input_quantity}, Available: {from_stock.quantity}"
+    #     )
+    
     # Auto-determine to_item_id if not provided (find bottle with matching size and grade)
     if not blow.to_item_id:
         to_item = db.query(Item).filter(
@@ -46,9 +53,8 @@ async def create_blow_process(
         # Validate the to_item exists if provided
         to_item = db.query(Item).filter(Item.id == blow.to_item_id).first()
         if not to_item:
-            raise HTTPException(status_code=400, detail="Bottle item not found")
-        if to_item.type != 'bottle':
-            raise HTTPException(status_code=400, detail="Target item must be a bottle type")
+            raise HTTPException(status_code=400, detail="Target item not found")
+        # Allow any item type to be produced (not just bottles)
     
     # Calculate output and waste
     # Assuming 95% efficiency by default, can be adjusted

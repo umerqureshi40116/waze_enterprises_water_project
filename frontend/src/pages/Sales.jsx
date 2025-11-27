@@ -688,6 +688,10 @@ const Sales = () => {
                 onLineItemsChange={(lineItems) => setFormData({ ...formData, line_items: lineItems })}
                 items={items}
                 isSale={true}
+                onNewItemCreated={(newItem) => {
+                  console.log('✅ New item created in LineItemsForm:', newItem);
+                  setItems([...items, newItem]);
+                }}
               />
 
               <div className="grid grid-cols-2 gap-4">
