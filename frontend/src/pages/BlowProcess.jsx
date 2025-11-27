@@ -50,11 +50,17 @@ const BlowProcess = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Auto-set to_item_id from the preform selection
+      const dataToSubmit = {
+        ...formData,
+        to_item_id: autoSelectedBottle?.id || null  // Will be set by backend if not provided
+      };
+      
       if (editMode) {
-        await api.put(`/blows/${formData.id}`, formData);
+        await api.put(`/blows/${formData.id}`, dataToSubmit);
         toast.success('Blow process updated successfully');
       } else {
-        await api.post('/blows/', formData);
+        await api.post('/blows/', dataToSubmit);
         toast.success('Blow process completed successfully');
       }
       setShowModal(false);
@@ -81,7 +87,7 @@ const BlowProcess = () => {
     setFormData({
       id: blow.id,
       from_item_id: blow.from_item_id,
-      to_item_id: blow.to_item_id,
+      to_item_id: blow.to_item_id,  // Keep to_item_id for editing
       input_quantity: blow.input_quantity,
       blow_cost_per_unit: blow.blow_cost_per_unit,
       notes: blow.notes || ''
@@ -127,7 +133,15 @@ const BlowProcess = () => {
   })();
 
   const inputQtyNum = Number(formData.input_quantity) || 0;
-  const saveDisabled = !formData.from_item_id || !formData.to_item_id || inputQtyNum <= 0 || inputQtyNum > availablePreformQty;
+  
+  // Get auto-selected bottle
+  const selectedPreform = items.find(i => i.id === formData.from_item_id);
+  const autoSelectedBottle = selectedPreform ? items.find(i => 
+    i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
+  ) : null;
+  
+  // Save is disabled if: no preform, no matching bottle, no input qty, or insufficient stock
+  const saveDisabled = !formData.from_item_id || !autoSelectedBottle || inputQtyNum <= 0 || inputQtyNum > availablePreformQty;
 
   // ✅ Currency formatter for PKR
   const formatPKR = (amount) => {
@@ -392,22 +406,25 @@ const BlowProcess = () => {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">To (Bottle)</label>
-                <select
-                  value={formData.to_item_id}
-                  onChange={(e) => setFormData({ ...formData, to_item_id: e.target.value })}
-                  className="input"
-                  required
-                >
-                  <option value="">Select Bottle</option>
-                  {bottles.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Auto-selected bottle display (no select needed) */}
+              {formData.from_item_id && (() => {
+                const selectedPreform = items.find(i => i.id === formData.from_item_id);
+                const autoBottle = selectedPreform ? items.find(i => 
+                  i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
+                ) : null;
+                
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">To (Bottle - Auto Selected)</label>
+                    <div className="input bg-gray-50 flex items-center justify-between">
+                      <span className="text-gray-700">
+                        {autoBottle ? autoBottle.name : <span className="text-red-600">❌ No matching bottle found</span>}
+                      </span>
+                      {autoBottle && <span className="text-green-600 text-sm">✓ Auto</span>}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Input Quantity</label>
@@ -428,8 +445,8 @@ const BlowProcess = () => {
                     ) : (
                       <p className="text-green-600 font-medium">✅ Sufficient stock</p>
                     )}
-                    {formData.to_item_id && (
-                      <p className="mt-1 text-gray-700">📦 Output: ~{calculateOutputQty(inputQtyNum, formData.from_item_id, formData.to_item_id)} units (95% efficiency)</p>
+                    {autoSelectedBottle && (
+                      <p className="mt-1 text-gray-700">📦 Output: ~{calculateOutputQty(inputQtyNum, formData.from_item_id, autoSelectedBottle.id)} units (95% efficiency)</p>
                     )}
                   </div>
                 )}

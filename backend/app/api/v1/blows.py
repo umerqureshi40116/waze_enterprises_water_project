@@ -5,8 +5,8 @@ from app.db.database import get_db
 from app.core.security import get_current_user, get_current_admin_user
 from app.models.user import User
 from app.models.transaction import Blow, Purchase
+from app.models.item import Item, Stock
 from sqlalchemy import func
-from app.models.item import Stock
 from app.models.stock_movement import StockMovement
 from app.schemas.operation import BlowCreate, BlowResponse, BlowUpdate
 
@@ -19,10 +19,36 @@ async def create_blow_process(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new blow process (convert preform to bottle)"""
-    # Check that item exists in stock
+    # Check that preform item exists
+    from_item = db.query(Item).filter(Item.id == blow.from_item_id).first()
+    if not from_item:
+        raise HTTPException(status_code=400, detail="Preform item not found")
+    
+    # Check that preform has stock
     from_stock = db.query(Stock).filter(Stock.item_id == blow.from_item_id).first()
     if not from_stock:
         raise HTTPException(status_code=400, detail="Preform item not found in stock")
+    
+    # Auto-determine to_item_id if not provided (find bottle with matching size and grade)
+    if not blow.to_item_id:
+        to_item = db.query(Item).filter(
+            Item.type == 'bottle',
+            Item.size == from_item.size,
+            Item.grade == from_item.grade
+        ).first()
+        if not to_item:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No matching bottle found for preform size {from_item.size} grade {from_item.grade}"
+            )
+        blow.to_item_id = to_item.id
+    else:
+        # Validate the to_item exists if provided
+        to_item = db.query(Item).filter(Item.id == blow.to_item_id).first()
+        if not to_item:
+            raise HTTPException(status_code=400, detail="Bottle item not found")
+        if to_item.type != 'bottle':
+            raise HTTPException(status_code=400, detail="Target item must be a bottle type")
     
     # Calculate output and waste
     # Assuming 95% efficiency by default, can be adjusted

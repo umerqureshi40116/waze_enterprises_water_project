@@ -5,7 +5,7 @@ from decimal import Decimal
 
 class BlowBase(BaseModel):
     from_item_id: str
-    to_item_id: str
+    to_item_id: Optional[str] = None
     input_quantity: int
     blow_cost_per_unit: Decimal
     notes: Optional[str] = None

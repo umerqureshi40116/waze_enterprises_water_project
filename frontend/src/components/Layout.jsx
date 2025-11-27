@@ -15,7 +15,8 @@ import {
   Droplet,
   UserCog,
   Box,
-  DollarSign
+  DollarSign,
+  BookOpen
 } from 'lucide-react';
 
 const Layout = () => {
@@ -33,6 +34,7 @@ const Layout = () => {
     { name: 'Items', href: '/items', icon: Box },
     { name: 'Suppliers', href: '/suppliers', icon: Users },
     { name: 'Customers', href: '/customers', icon: UserCheck },
+    { name: 'Ledger', href: '/ledger', icon: BookOpen },
   ];
 
   // Add admin-only options

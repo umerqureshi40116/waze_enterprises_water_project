@@ -10,6 +10,7 @@ from app.models.transaction import Purchase, Sale, Blow, Waste, ExtraExpenditure
 from app.models.party import Supplier, Customer
 from app.models.item import Stock, Item
 from app.models.report import WeeklyReport
+from app.schemas.ledger import LedgerResponse, LedgerEntry
 from fastapi.responses import StreamingResponse, FileResponse
 import io
 from reportlab.pdfgen import canvas
@@ -1844,3 +1845,339 @@ def get_record_count(record_type: str, db: Session = Depends(get_db)):
         return {"count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# LEDGER ENDPOINTS - Customer/Supplier transaction history
+# ============================================================================
+
+@router.get("/ledger/customer/{customer_id}", response_model=LedgerResponse)
+async def get_customer_ledger(
+    customer_id: str,
+    month: int = None,
+    year: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get customer account ledger for a specific month/year"""
+    if not month:
+        month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    
+    # Verify customer exists
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Get all sales for this customer
+    sales = db.query(Sale).filter(
+        Sale.customer_id == customer_id,
+        extract('month', Sale.date) == month,
+        extract('year', Sale.date) == year
+    ).order_by(Sale.date).all()
+    
+    # Build transactions list
+    transactions = []
+    running_balance = 0.0
+    
+    for sale in sales:
+        debit = float(sale.total_price) if sale.total_price else 0.0
+        credit = 0.0
+        
+        # If paid, deduct from balance
+        if sale.payment_status == 'paid':
+            credit = debit
+            debit = 0.0
+        elif sale.payment_status == 'partial':
+            # Assume 50% paid (or calculate from actual payment data if available)
+            credit = debit * 0.5
+            debit = debit * 0.5
+        
+        running_balance += (credit - debit)
+        
+        transactions.append(LedgerEntry(
+            date=sale.date.date() if hasattr(sale.date, 'date') else sale.date,
+            reference_number=sale.bill_number,
+            description=f"Sale #{sale.bill_number}",
+            debit=debit,
+            credit=credit,
+            balance=running_balance,
+            payment_status=sale.payment_status or 'pending',
+            transaction_type='sale'
+        ))
+    
+    # Calculate totals
+    total_debit = sum(t.debit for t in transactions)
+    total_credit = sum(t.credit for t in transactions)
+    opening_balance = 0.0
+    closing_balance = running_balance
+    
+    return LedgerResponse(
+        party_id=customer_id,
+        party_name=customer.name,
+        party_type='customer',
+        month=month,
+        year=year,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        transactions=transactions
+    )
+
+
+@router.get("/ledger/supplier/{supplier_id}", response_model=LedgerResponse)
+async def get_supplier_ledger(
+    supplier_id: str,
+    month: int = None,
+    year: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get supplier account ledger for a specific month/year"""
+    if not month:
+        month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    
+    # Verify supplier exists
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    # Get all purchases for this supplier
+    purchases = db.query(Purchase).filter(
+        Purchase.supplier_id == supplier_id,
+        extract('month', Purchase.date) == month,
+        extract('year', Purchase.date) == year
+    ).order_by(Purchase.date).all()
+    
+    # Build transactions list
+    transactions = []
+    running_balance = 0.0
+    
+    for purchase in purchases:
+        debit = 0.0
+        credit = float(purchase.total_amount) if purchase.total_amount else 0.0
+        
+        # If paid, deduct from balance
+        if purchase.payment_status == 'paid':
+            debit = credit
+            credit = 0.0
+        elif purchase.payment_status == 'partial':
+            # Assume 50% paid
+            debit = credit * 0.5
+            credit = credit * 0.5
+        
+        running_balance += (credit - debit)
+        
+        transactions.append(LedgerEntry(
+            date=purchase.date.date() if hasattr(purchase.date, 'date') else purchase.date,
+            reference_number=purchase.bill_number,
+            description=f"Purchase #{purchase.bill_number}",
+            debit=debit,
+            credit=credit,
+            balance=running_balance,
+            payment_status=purchase.payment_status or 'pending',
+            transaction_type='purchase'
+        ))
+    
+    # Calculate totals
+    total_debit = sum(t.debit for t in transactions)
+    total_credit = sum(t.credit for t in transactions)
+    opening_balance = 0.0
+    closing_balance = running_balance
+    
+    return LedgerResponse(
+        party_id=supplier_id,
+        party_name=supplier.name,
+        party_type='supplier',
+        month=month,
+        year=year,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        transactions=transactions
+    )
+
+
+@router.get("/ledger/customer/{customer_id}/pdf")
+async def get_customer_ledger_pdf(
+    customer_id: str,
+    month: int = None,
+    year: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download customer ledger as PDF"""
+    if not month:
+        month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    
+    # Get ledger data
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    sales = db.query(Sale).filter(
+        Sale.customer_id == customer_id,
+        extract('month', Sale.date) == month,
+        extract('year', Sale.date) == year
+    ).order_by(Sale.date).all()
+    
+    # Generate PDF
+    pdf_buffer = io.BytesIO()
+    pdf_canvas = canvas.Canvas(pdf_buffer, pagesize=A4)
+    
+    # Title
+    pdf_canvas.setFont("Helvetica-Bold", 16)
+    pdf_canvas.drawString(50, 800, "Customer Ledger")
+    
+    # Customer info
+    pdf_canvas.setFont("Helvetica", 10)
+    pdf_canvas.drawString(50, 780, f"Customer: {customer.name}")
+    pdf_canvas.drawString(50, 765, f"Period: {calendar.month_name[month]} {year}")
+    
+    # Table headers
+    pdf_canvas.setFont("Helvetica-Bold", 9)
+    y = 740
+    pdf_canvas.drawString(50, y, "Date")
+    pdf_canvas.drawString(120, y, "Reference")
+    pdf_canvas.drawString(200, y, "Debit")
+    pdf_canvas.drawString(280, y, "Credit")
+    pdf_canvas.drawString(360, y, "Balance")
+    pdf_canvas.drawString(460, y, "Status")
+    
+    # Table data
+    pdf_canvas.setFont("Helvetica", 9)
+    y = 725
+    running_balance = 0.0
+    
+    for sale in sales:
+        debit = float(sale.total_price) if sale.total_price else 0.0
+        credit = 0.0
+        
+        if sale.payment_status == 'paid':
+            credit = debit
+            debit = 0.0
+        elif sale.payment_status == 'partial':
+            credit = debit * 0.5
+            debit = debit * 0.5
+        
+        running_balance += (credit - debit)
+        
+        sale_date = sale.date.strftime('%Y-%m-%d') if hasattr(sale.date, 'strftime') else str(sale.date)
+        
+        pdf_canvas.drawString(50, y, sale_date)
+        pdf_canvas.drawString(120, y, sale.bill_number)
+        pdf_canvas.drawString(200, y, f"{debit:.2f}")
+        pdf_canvas.drawString(280, y, f"{credit:.2f}")
+        pdf_canvas.drawString(360, y, f"{running_balance:.2f}")
+        pdf_canvas.drawString(460, y, sale.payment_status or 'pending')
+        
+        y -= 15
+        if y < 50:
+            pdf_canvas.showPage()
+            y = 750
+    
+    pdf_canvas.save()
+    pdf_buffer.seek(0)
+    
+    return StreamingResponse(
+        iter([pdf_buffer.getvalue()]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=\"ledger_{customer_id}_{year}_{month}.pdf\""}
+    )
+
+
+@router.get("/ledger/supplier/{supplier_id}/pdf")
+async def get_supplier_ledger_pdf(
+    supplier_id: str,
+    month: int = None,
+    year: int = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download supplier ledger as PDF"""
+    if not month:
+        month = datetime.now().month
+    if not year:
+        year = datetime.now().year
+    
+    # Get ledger data
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    purchases = db.query(Purchase).filter(
+        Purchase.supplier_id == supplier_id,
+        extract('month', Purchase.date) == month,
+        extract('year', Purchase.date) == year
+    ).order_by(Purchase.date).all()
+    
+    # Generate PDF
+    pdf_buffer = io.BytesIO()
+    pdf_canvas = canvas.Canvas(pdf_buffer, pagesize=A4)
+    
+    # Title
+    pdf_canvas.setFont("Helvetica-Bold", 16)
+    pdf_canvas.drawString(50, 800, "Supplier Ledger")
+    
+    # Supplier info
+    pdf_canvas.setFont("Helvetica", 10)
+    pdf_canvas.drawString(50, 780, f"Supplier: {supplier.name}")
+    pdf_canvas.drawString(50, 765, f"Period: {calendar.month_name[month]} {year}")
+    
+    # Table headers
+    pdf_canvas.setFont("Helvetica-Bold", 9)
+    y = 740
+    pdf_canvas.drawString(50, y, "Date")
+    pdf_canvas.drawString(120, y, "Reference")
+    pdf_canvas.drawString(200, y, "Debit")
+    pdf_canvas.drawString(280, y, "Credit")
+    pdf_canvas.drawString(360, y, "Balance")
+    pdf_canvas.drawString(460, y, "Status")
+    
+    # Table data
+    pdf_canvas.setFont("Helvetica", 9)
+    y = 725
+    running_balance = 0.0
+    
+    for purchase in purchases:
+        debit = 0.0
+        credit = float(purchase.total_amount) if purchase.total_amount else 0.0
+        
+        if purchase.payment_status == 'paid':
+            debit = credit
+            credit = 0.0
+        elif purchase.payment_status == 'partial':
+            debit = credit * 0.5
+            credit = credit * 0.5
+        
+        running_balance += (credit - debit)
+        
+        purchase_date = purchase.date.strftime('%Y-%m-%d') if hasattr(purchase.date, 'strftime') else str(purchase.date)
+        
+        pdf_canvas.drawString(50, y, purchase_date)
+        pdf_canvas.drawString(120, y, purchase.bill_number)
+        pdf_canvas.drawString(200, y, f"{debit:.2f}")
+        pdf_canvas.drawString(280, y, f"{credit:.2f}")
+        pdf_canvas.drawString(360, y, f"{running_balance:.2f}")
+        pdf_canvas.drawString(460, y, purchase.payment_status or 'pending')
+        
+        y -= 15
+        if y < 50:
+            pdf_canvas.showPage()
+            y = 750
+    
+    pdf_canvas.save()
+    pdf_buffer.seek(0)
+    
+    return StreamingResponse(
+        iter([pdf_buffer.getvalue()]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=\"ledger_{supplier_id}_{year}_{month}.pdf\""}
+    )

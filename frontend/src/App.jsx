@@ -15,6 +15,7 @@ import ExtraExpenditures from './pages/ExtraExpenditures';
 import Stock from './pages/Stock';
 import Items from './pages/Items';
 import Reports from './pages/Reports';
+import Ledger from './pages/Ledger';
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import Users from './pages/Users';
@@ -100,6 +101,7 @@ function App() {
               <Route path="items" element={<Items />} />
               <Route path="suppliers" element={<Suppliers />} />
               <Route path="customers" element={<Customers />} />
+              <Route path="ledger" element={<Ledger />} />
               <Route
                 path="reports"
                 element={
