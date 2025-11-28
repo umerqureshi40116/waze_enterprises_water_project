@@ -34,10 +34,15 @@ async def download_sale_invoice(
         # Get sale bill
         sale = db.query(Sale).filter(Sale.bill_number == bill_number).first()
         if not sale:
+            logger.warning(f"Sale not found: {bill_number}")
             raise HTTPException(status_code=404, detail="Sale bill not found")
+        
+        logger.info(f"Found sale: {bill_number}, date={sale.date}, due_date={sale.due_date}")
         
         # Get customer
         customer = db.query(Customer).filter(Customer.id == sale.customer_id).first()
+        if not customer:
+            logger.warning(f"Customer not found for sale: {bill_number}")
         
         # Get line items
         from app.models.transaction import SaleLineItem
@@ -46,10 +51,14 @@ async def download_sale_invoice(
         ).all()
         
         if not line_items:
+            logger.warning(f"No line items found for sale: {bill_number}")
             raise HTTPException(status_code=404, detail="No line items found for this sale")
+        
+        logger.info(f"Found {len(line_items)} line items for sale: {bill_number}")
         
         # Get all items
         items_list = db.query(Item).all()
+        logger.info(f"Found {len(items_list)} items in database")
         
         # Generate PDF asynchronously to avoid blocking the event loop
         pdf_buffer = await asyncio.to_thread(
@@ -60,8 +69,10 @@ async def download_sale_invoice(
             items_db=items_list
         )
         
+        logger.info(f"Successfully generated PDF for sale: {bill_number}")
+        
         # Return as downloadable file
-        filename = f"invoice_{bill_number}_{sale.date.strftime('%Y%m%d')}.pdf"
+        filename = f"invoice_{bill_number}_{sale.due_date.strftime('%Y%m%d') if sale.due_date else 'unknown'}.pdf"
         
         return StreamingResponse(
             iter([pdf_buffer.getvalue()]),
@@ -72,7 +83,7 @@ async def download_sale_invoice(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error generating invoice PDF: {str(e)}", exc_info=True)
+        logger.error(f"Error generating sale invoice PDF for {bill_number}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
 
 
@@ -90,10 +101,15 @@ async def download_purchase_invoice(
         # Get purchase bill
         purchase = db.query(Purchase).filter(Purchase.bill_number == bill_number).first()
         if not purchase:
+            logger.warning(f"Purchase not found: {bill_number}")
             raise HTTPException(status_code=404, detail="Purchase bill not found")
+        
+        logger.info(f"Found purchase: {bill_number}, date={purchase.date}, due_date={purchase.due_date}")
         
         # Get supplier
         supplier = db.query(Supplier).filter(Supplier.id == purchase.supplier_id).first()
+        if not supplier:
+            logger.warning(f"Supplier not found for purchase: {bill_number}")
         
         # Get line items
         from app.models.transaction import PurchaseLineItem
@@ -102,10 +118,14 @@ async def download_purchase_invoice(
         ).all()
         
         if not line_items:
+            logger.warning(f"No line items found for purchase: {bill_number}")
             raise HTTPException(status_code=404, detail="No line items found for this purchase")
+        
+        logger.info(f"Found {len(line_items)} line items for purchase: {bill_number}")
         
         # Get all items
         items_list = db.query(Item).all()
+        logger.info(f"Found {len(items_list)} items in database")
         
         # Generate PDF asynchronously to avoid blocking the event loop
         pdf_buffer = await asyncio.to_thread(
@@ -116,8 +136,10 @@ async def download_purchase_invoice(
             items_db=items_list
         )
         
+        logger.info(f"Successfully generated PDF for purchase: {bill_number}")
+        
         # Return as downloadable file
-        filename = f"purchase_invoice_{bill_number}_{purchase.date.strftime('%Y%m%d')}.pdf"
+        filename = f"purchase_invoice_{bill_number}_{purchase.due_date.strftime('%Y%m%d') if purchase.due_date else 'unknown'}.pdf"
         
         return StreamingResponse(
             iter([pdf_buffer.getvalue()]),
@@ -128,5 +150,5 @@ async def download_purchase_invoice(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error generating purchase invoice PDF: {str(e)}", exc_info=True)
+        logger.error(f"Error generating purchase invoice PDF for {bill_number}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
