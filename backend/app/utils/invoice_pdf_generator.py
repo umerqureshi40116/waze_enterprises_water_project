@@ -477,17 +477,6 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
     received_amount = float(sale_bill.paid_amount) if sale_bill.paid_amount else 0
     payment_status = sale_bill.payment_status if hasattr(sale_bill, 'payment_status') else 'pending'
     
-    # Get date - use due_date if date is None
-    invoice_date = sale_bill.date
-    if invoice_date is None:
-        invoice_date = sale_bill.due_date
-    
-    # Format date safely
-    if invoice_date and hasattr(invoice_date, 'strftime'):
-        date_str = invoice_date.strftime('%d-%m-%Y')
-    else:
-        date_str = str(invoice_date) if invoice_date else "N/A"
-    
     # Generate PDF
     pdf_buffer = generator.generate_invoice_pdf(
         company_name="Waze Enterprises - Water Bottle Division",
@@ -495,7 +484,7 @@ def generate_sales_invoice_pdf(sale_bill, customer, line_items, items_db):
         company_phone="0343-9998954",
         company_email="",
         invoice_no=sale_bill.bill_number,
-        invoice_date=date_str,
+        invoice_date=sale_bill.date.strftime('%d-%m-%Y') if hasattr(sale_bill.date, 'strftime') else str(sale_bill.date),
         bill_to_name=customer.name if customer else "Unknown Customer",
         bill_to_address=customer.address if customer and hasattr(customer, 'address') else "",
         bill_to_contact=customer.phone if customer and hasattr(customer, 'phone') else "",
@@ -535,17 +524,6 @@ def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db)
     received_amount = float(purchase_bill.paid_amount) if purchase_bill.paid_amount else 0
     payment_status = purchase_bill.payment_status if hasattr(purchase_bill, 'payment_status') else 'pending'
     
-    # Get date - use due_date if date is None
-    invoice_date = purchase_bill.date
-    if invoice_date is None:
-        invoice_date = purchase_bill.due_date
-    
-    # Format date safely
-    if invoice_date and hasattr(invoice_date, 'strftime'):
-        date_str = invoice_date.strftime('%d-%m-%Y')
-    else:
-        date_str = str(invoice_date) if invoice_date else "N/A"
-    
     # Generate PDF
     pdf_buffer = generator.generate_invoice_pdf(
         company_name="Waze Enterprises - Water Bottle Division",
@@ -553,7 +531,7 @@ def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db)
         company_phone="0343-9998954",
         company_email="",
         invoice_no=purchase_bill.bill_number,
-        invoice_date=date_str,
+        invoice_date=purchase_bill.date.strftime('%d-%m-%Y') if hasattr(purchase_bill.date, 'strftime') else str(purchase_bill.date),
         bill_to_name=supplier.name if supplier else "Unknown Supplier",
         bill_to_address=supplier.address if supplier and hasattr(supplier, 'address') else "",
         bill_to_contact=supplier.phone if supplier and hasattr(supplier, 'phone') else "",
