@@ -142,7 +142,7 @@ const ExtraExpenditures = () => {
       link.setAttribute('download', `extra-expenditures-all-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
@@ -166,7 +166,7 @@ const ExtraExpenditures = () => {
       link.setAttribute('download', `extra-expenditures-selected-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
