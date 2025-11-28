@@ -4,7 +4,7 @@ import axios from 'axios';
 let API_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!API_URL) {
-  // Fallback to Railway backend URL (must be HTTPS for Vercel)
+  // Fallback to Railway backend URL (production)
   API_URL = 'https://wazeenterpriseswaterproject-production.up.railway.app/api/v1';
 }
 
