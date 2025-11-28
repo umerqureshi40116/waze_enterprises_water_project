@@ -77,13 +77,14 @@ const Ledger = () => {
       });
       
       // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(res.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `ledger_${selectedParty}_${selectedYear}_${selectedMonth}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.parentChild.removeChild(link);
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       toast.success('PDF downloaded successfully');
     } catch (error) {

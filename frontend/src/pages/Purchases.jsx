@@ -253,13 +253,14 @@ const Purchases = () => {
       const response = await api.get(`/invoices/invoice/purchase/${billNumber}`, {
         responseType: 'blob'
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(response.data);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `purchase_invoice_${billNumber}.pdf`);
       document.body.appendChild(link);
       link.click();
-      link.remove();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       toast.success('Purchase invoice downloaded successfully');
     } catch (error) {
       console.error('Download error:', error);
@@ -279,13 +280,14 @@ const Purchases = () => {
           responseType: 'blob'
         });
 
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(response.data);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', `purchase_invoice_${billNumber}.pdf`);
         document.body.appendChild(link);
         link.click();
-        link.remove();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
         
         // Small delay between downloads
         await new Promise(resolve => setTimeout(resolve, 300));
