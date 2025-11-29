@@ -2,6 +2,7 @@ from fastapi import FastAPI, APIRouter, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.core.config import settings
 from sqlalchemy.orm import Session
 import logging
@@ -17,6 +18,13 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    redirect_slashes=False,  # CRITICAL: Disable automatic trailing slash redirects
+)
+
+# Trust proxy headers (for Railway, Vercel, etc.)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["*"],
 )
 
 # CORS Configuration - Handle preflight and actual requests
@@ -29,6 +37,27 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
+
+# Middleware to log requests and preserve HTTPS protocol
+@app.middleware("http")
+async def log_and_preserve_https(request: Request, call_next):
+    """
+    Log requests and ensure HTTPS is preserved when behind a proxy.
+    This prevents Railway/Vercel proxies from downgrading HTTPS to HTTP.
+    """
+    # Check for proxy headers that indicate original HTTPS
+    forwarded_proto = request.headers.get('x-forwarded-proto')
+    if forwarded_proto:
+        logger.info(f"📡 Forwarded protocol: {forwarded_proto}")
+    
+    response = await call_next(request)
+    
+    # Add security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    return response
 
 # Request Timing Middleware - Log response times to identify slow endpoints
 @app.middleware("http")
