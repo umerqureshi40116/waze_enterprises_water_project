@@ -1,7 +1,8 @@
 from fastapi import FastAPI, APIRouter, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from sqlalchemy.orm import Session
 import logging
@@ -17,8 +18,27 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    redirect_slashes=False,  # Disable automatic trailing slash redirects
 )
+
+# Trailing Slash Middleware - MUST BE BEFORE CORS
+# This removes trailing slashes from API routes to prevent 307 redirects
+class RemoveTrailingSlashMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        # Remove trailing slash from API paths (but keep root)
+        if path.startswith("/api/") and path != "/" and path.endswith("/"):
+            # Create new URL without trailing slash
+            new_path = path.rstrip("/")
+            # Preserve query string
+            if request.url.query:
+                new_url = f"{request.url.scheme}://{request.url.netloc}{new_path}?{request.url.query}"
+            else:
+                new_url = f"{request.url.scheme}://{request.url.netloc}{new_path}"
+            return RedirectResponse(url=new_url, status_code=308)  # 308 preserves method
+        
+        return await call_next(request)
+
+app.add_middleware(RemoveTrailingSlashMiddleware)
 
 # CORS Configuration - Handle preflight and actual requests
 app.add_middleware(
