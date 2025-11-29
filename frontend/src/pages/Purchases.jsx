@@ -87,7 +87,7 @@ const Purchases = () => {
     try {
       const [purchasesRes, suppliersRes, itemsRes] = await Promise.all([
         api.get('/purchases'),
-        api.get('/suppliers/'),
+        api.get('/suppliers'),
         api.get('/stocks/items')
       ]);
 

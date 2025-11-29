@@ -21,7 +21,7 @@ const Ledger = () => {
   const fetchParties = async () => {
     try {
       setLoading(true);
-      const endpoint = partyType === 'customer' ? '/customers/' : '/suppliers/';
+      const endpoint = partyType === 'customer' ? '/customers' : '/suppliers';
       const res = await api.get(endpoint);
       setParties(res.data);
       setSelectedParty('');
