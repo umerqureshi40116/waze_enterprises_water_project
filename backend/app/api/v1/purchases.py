@@ -133,8 +133,18 @@ async def get_purchases(
     current_user: User = Depends(get_current_user)
 ):
     """Get all purchases with line items"""
-    purchases = db.query(Purchase).order_by(Purchase.date.desc()).offset(skip).limit(limit).all()
-    return purchases
+    try:
+        purchases = db.query(Purchase).order_by(Purchase.date.desc()).offset(skip).limit(limit).all()
+        
+        # Ensure line_items are loaded
+        for purchase in purchases:
+            if purchase.line_items is None:
+                purchase.line_items = []
+        
+        return purchases
+    except Exception as e:
+        logging.error(f"Error getting purchases: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Error fetching purchases: {str(e)}")
 
 @router.get("/{bill_number}", response_model=PurchaseResponse)
 async def get_purchase(

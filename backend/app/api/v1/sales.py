@@ -349,11 +349,21 @@ async def get_sales(
     current_user: User = Depends(get_current_user)
 ):
     """Get all sales with line items"""
-    print(f"\n📊 GET /sales endpoint called")
-    print(f"   skip={skip}, limit={limit}, user={current_user.username}")
-    sales = db.query(Sale).order_by(Sale.date.desc()).offset(skip).limit(limit).all()
-    print(f"   ✅ Returned {len(sales)} sales")
-    return sales
+    try:
+        print(f"\n📊 GET /sales endpoint called")
+        print(f"   skip={skip}, limit={limit}, user={current_user.username}")
+        sales = db.query(Sale).order_by(Sale.date.desc()).offset(skip).limit(limit).all()
+        print(f"   ✅ Returned {len(sales)} sales")
+        
+        # Ensure line_items are loaded
+        for sale in sales:
+            if sale.line_items is None:
+                sale.line_items = []
+        
+        return sales
+    except Exception as e:
+        logging.error(f"Error getting sales: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Error fetching sales: {str(e)}")
 
 @router.post("/recalculate-cogs")
 async def recalculate_cogs(
