@@ -86,8 +86,8 @@ const Purchases = () => {
   const fetchData = async () => {
     try {
       const [purchasesRes, suppliersRes, itemsRes] = await Promise.all([
-        api.get('/purchases'),
-        api.get('/suppliers'),
+        api.get('/purchases/'),
+        api.get('/suppliers/'),
         api.get('/stocks/items')
       ]);
 

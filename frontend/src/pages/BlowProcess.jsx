@@ -55,7 +55,7 @@ const BlowProcess = () => {
   const fetchData = async () => {
     try {
       const [blowsRes, itemsRes] = await Promise.all([
-        api.get('/blows'),
+        api.get('/blows/'),
         api.get('/stocks/items')
       ]);
       setBlows(blowsRes.data);
@@ -101,7 +101,7 @@ const BlowProcess = () => {
         await api.put(`/blows/${formData.id}`, dataToSubmit);
         toast.success('Blow process updated successfully');
       } else {
-        await api.post('/blows', dataToSubmit);
+        await api.post('/blows/', dataToSubmit);
         toast.success('Blow process completed successfully');
       }
       setShowModal(false);

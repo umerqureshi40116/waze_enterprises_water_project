@@ -56,7 +56,7 @@ const ExtraExpenditures = () => {
 
   const fetchData = async () => {
     try {
-      const response = await api.get('/extra-expenditures');
+      const response = await api.get('/extra-expenditures/');
       setExpenditures(Array.isArray(response.data) ? response.data : []);
       setFilteredExpenditures(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
@@ -82,7 +82,7 @@ const ExtraExpenditures = () => {
         toast.success('Expenditure updated successfully');
       } else {
         const newExpense = { ...submitData, id: await generateExpenseId() };
-        await api.post('/extra-expenditures', newExpense);
+        await api.post('/extra-expenditures/', newExpense);
         toast.success('Expenditure recorded successfully');
       }
       setShowModal(false);

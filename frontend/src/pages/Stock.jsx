@@ -25,7 +25,7 @@ const Stock = () => {
   const fetchData = async () => {
     try {
       const [stocksRes, movementsRes, itemsRes] = await Promise.all([
-        api.get('/stocks'),
+        api.get('/stocks/'),
         api.get('/stocks/movements'),
         api.get('/stocks/items')
       ]);

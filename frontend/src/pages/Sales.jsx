@@ -69,11 +69,11 @@ const Sales = () => {
       
       // Fetch each endpoint separately to see which one fails
       console.log('📡 Fetching sales...');
-      const salesRes = await api.get('/sales');
+      const salesRes = await api.get('/sales/');
       console.log('✅ Sales fetched:', salesRes.status, salesRes.data.length, 'items');
       
       console.log('📡 Fetching customers...');
-      const customersRes = await api.get('/customers');
+      const customersRes = await api.get('/customers/');
       console.log('✅ Customers fetched:', customersRes.status, customersRes.data.length, 'items');
       
       console.log('📡 Fetching items...');

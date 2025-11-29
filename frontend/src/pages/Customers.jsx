@@ -13,7 +13,7 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await api.get('/customers');
+      const res = await api.get('/customers/');
       setCustomers(res.data);
     } catch (error) {
       toast.error('Failed to fetch customers');
@@ -25,7 +25,7 @@ const Customers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/customers', formData);
+      await api.post('/customers/', formData);
       toast.success('Customer added successfully');
       setShowModal(false);
       fetchCustomers();
