@@ -56,24 +56,32 @@ const api = axios.create({
 
 // Request interceptor to add token and log requests
 api.interceptors.request.use(config => {
+  // CRITICAL: Ensure baseURL is ALWAYS HTTPS
+  if (config.baseURL) {
+    if (config.baseURL.startsWith('http://')) {
+      const original = config.baseURL;
+      config.baseURL = config.baseURL.replace('http://', 'https://');
+      console.log('🔒 FIXED HTTP→HTTPS in baseURL:', original, '→', config.baseURL);
+    }
+  }
+  
   // CRITICAL: Force HTTPS on all non-localhost URLs
   if (config.url && !config.url.startsWith('/')) {
     // Absolute URL
     if (config.url.startsWith('http://')) {
+      const original = config.url;
       config.url = config.url.replace('http://', 'https://');
-      console.log('🔒 FORCED HTTPS in config.url:', config.url);
+      console.log('🔒 FIXED HTTP→HTTPS in url:', original, '→', config.url);
     }
   }
-  if (config.baseURL && config.baseURL.startsWith('http://')) {
-    config.baseURL = config.baseURL.replace('http://', 'https://');
-    console.log('🔒 FORCED HTTPS in config.baseURL:', config.baseURL);
-  }
   
+  const fullURL = (config.baseURL || '') + (config.url || '');
   console.log('🌐 API Request:', {
     method: config.method,
     url: config.url,
     baseURL: config.baseURL,
-    fullURL: config.baseURL + config.url,
+    fullURL: fullURL,
+    isHttps: fullURL.startsWith('https://'),
     hasToken: !!localStorage.getItem("token")
   });
   

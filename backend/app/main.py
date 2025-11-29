@@ -37,34 +37,28 @@ app.add_middleware(
     max_age=3600,
 )
 
-# Middleware to log requests and preserve HTTPS protocol
+# Middleware to ensure HTTPS is used in redirects
 @app.middleware("http")
-async def log_request_timing(request: Request, call_next):
-    """Log the execution time of each request to identify bottlenecks."""
-    # Skip logging for health checks and keep-alive (too noisy)
-    skip_paths = {"/keep-alive", "/health"}
-    if request.url.path in skip_paths:
-        return await call_next(request)
-    
-    start_time = time.time()
+async def enforce_https_redirects(request: Request, call_next):
+    """Ensure that any redirects use HTTPS protocol to prevent mixed-content errors."""
     response = await call_next(request)
-    duration = time.time() - start_time
     
-    # Log slow requests (>1 second) or all requests if in debug mode
-    if duration > 1.0:  # Only log slow requests
-        logger.warning(
-            f"🐌 SLOW REQUEST: {request.method} {request.url.path} "
-            f"took {duration:.2f}s (status: {response.status_code})"
-        )
-    else:
-        logger.debug(
-            f"✅ {request.method} {request.url.path} "
-            f"completed in {duration:.3f}s (status: {response.status_code})"
-        )
+    # If this is a redirect response (3xx), ensure Location header uses HTTPS
+    if 300 <= response.status_code < 400:
+        location = response.headers.get("location")
+        if location and location.startswith("http://"):
+            # Railway is downgrading HTTPS→HTTP in redirects
+            # Force it back to HTTPS
+            original_location = location
+            location = location.replace("http://", "https://")
+            response.headers["location"] = location
+            logger.warning(
+                f"🔒 FIXED HTTPS downgrade in redirect: {original_location} → {location}"
+            )
     
     return response
 
-# Request Timing Middleware - Log response times to identify slow endpoints
+# Middleware to log requests and preserve HTTPS protocol
 @app.middleware("http")
 async def log_request_timing(request: Request, call_next):
     """Log the execution time of each request to identify bottlenecks."""
