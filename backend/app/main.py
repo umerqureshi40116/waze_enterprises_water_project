@@ -37,17 +37,30 @@ app.add_middleware(
     max_age=3600,
 )
 
-# Middleware to log requests and preserve HTTPS protocol
+# Middleware to strip trailing slashes and prevent HTTPS downgrades
+from starlette.datastructures import URL
+
 @app.middleware("http")
-async def log_and_preserve_https(request: Request, call_next):
+async def strip_trailing_slash_and_log(request: Request, call_next):
     """
-    Log requests and ensure HTTPS is preserved when behind a proxy.
-    This prevents Railway/Vercel proxies from downgrading HTTPS to HTTP.
+    Strip trailing slashes from API paths to prevent redirects.
+    This prevents Railway/Vercel proxies from downgrading HTTPS to HTTP
+    when FastAPI tries to redirect for trailing slashes.
     """
-    # Check for proxy headers that indicate original HTTPS
-    forwarded_proto = request.headers.get('x-forwarded-proto')
-    if forwarded_proto:
-        logger.info(f"📡 Forwarded protocol: {forwarded_proto}")
+    path = request.url.path
+    
+    # Only strip trailing slashes from API routes (not root)
+    if path.startswith("/api/") and path != "/" and path.endswith("/"):
+        # Reconstruct URL without trailing slash
+        new_path = path.rstrip("/")
+        new_url = request.url.replace(path=new_path)
+        
+        # Modify the request scope
+        request.scope["path"] = new_path
+        if "raw_path" in request.scope:
+            request.scope["raw_path"] = new_path.encode()
+        
+        logger.info(f"🔄 Stripped trailing slash: {path} → {new_path}")
     
     response = await call_next(request)
     
