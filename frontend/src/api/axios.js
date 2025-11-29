@@ -96,14 +96,29 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('❌ API Error:', {
+    const errorInfo = {
       status: error.response?.status,
       statusText: error.response?.statusText,
       url: error.config?.url,
       baseURL: error.config?.baseURL,
       message: error.message,
-      data: error.response?.data
-    });
+      data: error.response?.data,
+      code: error.code,
+      isNetworkError: !error.response,
+      isTimeoutError: error.code === 'ECONNABORTED'
+    };
+    
+    console.error('❌ API Error:', errorInfo);
+    
+    // Log full error details
+    if (!error.response) {
+      console.error('🌐 Network Error Details:', {
+        message: error.message,
+        code: error.code,
+        errno: error.errno
+      });
+    }
+    
     if (error.response?.status === 401) {
       console.log('🚫 Unauthorized - redirecting to login');
       localStorage.removeItem('token');

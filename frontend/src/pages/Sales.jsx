@@ -96,9 +96,19 @@ const Sales = () => {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
-        url: error.config?.url
+        url: error.config?.url,
+        isNetworkError: !error.response,
+        errorCode: error.code
       });
-      toast.error(`Failed to fetch data: ${error.response?.status} ${error.response?.statusText}`);
+      
+      let errorMsg = 'Failed to fetch data';
+      if (error.response) {
+        errorMsg = `${error.response.status} ${error.response.statusText}`;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      toast.error(errorMsg);
       setSales([]);
       setCustomers([]);
       setItems([]);
