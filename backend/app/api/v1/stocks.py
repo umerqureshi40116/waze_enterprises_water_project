@@ -105,7 +105,10 @@ async def get_all_items(
     current_user: User = Depends(get_current_user)
 ):
     """Get all items with current stock"""
+    print(f"\n📊 GET /stocks/items endpoint called")
+    print(f"   user={current_user.username}")
     items = db.query(Item).all()
+    print(f"   ✅ Found {len(items)} items in database")
     result = []
 
     for item in items:
@@ -123,6 +126,7 @@ async def get_all_items(
             "current_stock": current_stock
         })
     
+    print(f"   ✅ Returning {len(result)} items to client")
     return result
 
 @router.post("/items/auto-create")

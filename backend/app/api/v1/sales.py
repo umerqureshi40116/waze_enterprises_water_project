@@ -345,10 +345,14 @@ async def create_sale(
 async def get_sales(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get all sales with line items"""
+    print(f"\n📊 GET /sales endpoint called")
+    print(f"   skip={skip}, limit={limit}, user={current_user.username}")
     sales = db.query(Sale).order_by(Sale.date.desc()).offset(skip).limit(limit).all()
+    print(f"   ✅ Returned {len(sales)} sales")
     return sales
 
 @router.post("/recalculate-cogs")

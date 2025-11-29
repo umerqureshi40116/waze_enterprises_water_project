@@ -35,7 +35,10 @@ async def get_customers(
     current_user: User = Depends(get_current_user)
 ):
     """Get all customers"""
+    print(f"\n📊 GET /customers endpoint called")
+    print(f"   skip={skip}, limit={limit}, user={current_user.username}")
     customers = db.query(Customer).offset(skip).limit(limit).all()
+    print(f"   ✅ Returned {len(customers)} customers")
     return customers
 
 @router.get("/{customer_id}", response_model=CustomerResponse)
