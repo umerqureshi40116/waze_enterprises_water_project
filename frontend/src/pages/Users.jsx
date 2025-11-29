@@ -21,7 +21,7 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/users/');
+      const res = await api.get('/users');
       setUsers(res.data);
     } catch (error) {
       toast.error('Failed to fetch users');
@@ -33,7 +33,7 @@ const Users = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/users/', formData);
+      await api.post('/users', formData);
       toast.success('User created successfully');
       setShowModal(false);
       fetchUsers();

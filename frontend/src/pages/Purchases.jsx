@@ -86,7 +86,7 @@ const Purchases = () => {
   const fetchData = async () => {
     try {
       const [purchasesRes, suppliersRes, itemsRes] = await Promise.all([
-        api.get('/purchases/'),
+        api.get('/purchases'),
         api.get('/suppliers/'),
         api.get('/stocks/items')
       ]);
@@ -186,7 +186,7 @@ const Purchases = () => {
         await api.put(`/purchases/${formData.bill_number}`, purchaseData);
         toast.success('Purchase updated successfully');
       } else {
-        await api.post('/purchases/', purchaseData);
+        await api.post('/purchases', purchaseData);
         toast.success('Purchase created successfully');
       }
       setShowModal(false);

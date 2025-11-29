@@ -13,7 +13,7 @@ const Suppliers = () => {
 
   const fetchSuppliers = async () => {
     try {
-      const res = await api.get('/suppliers/');
+      const res = await api.get('/suppliers');
       setSuppliers(res.data);
     } catch (error) {
       toast.error('Failed to fetch suppliers');
@@ -25,7 +25,7 @@ const Suppliers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/suppliers/', formData);
+      await api.post('/suppliers', formData);
       toast.success('Supplier added successfully');
       setShowModal(false);
       fetchSuppliers();

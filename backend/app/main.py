@@ -13,11 +13,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="💧 Water Bottle Inventory API",
+    title="Water Bottle Inventory API",
     description="Professional inventory management system for water bottle manufacturing",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    redirect_slashes=False,  # CRITICAL: Disable trailing slash redirects to prevent HTTPS downgrade on Railway
 )
 
 # Trust proxy headers (for Railway, Vercel, etc.)
@@ -37,37 +38,30 @@ app.add_middleware(
     max_age=3600,
 )
 
-# Middleware to strip trailing slashes and prevent HTTPS downgrades
-from starlette.datastructures import URL
-
+# Middleware to log requests and preserve HTTPS protocol
 @app.middleware("http")
-async def strip_trailing_slash_and_log(request: Request, call_next):
-    """
-    Strip trailing slashes from API paths to prevent redirects.
-    This prevents Railway/Vercel proxies from downgrading HTTPS to HTTP
-    when FastAPI tries to redirect for trailing slashes.
-    """
-    path = request.url.path
+async def log_request_timing(request: Request, call_next):
+    """Log the execution time of each request to identify bottlenecks."""
+    # Skip logging for health checks and keep-alive (too noisy)
+    skip_paths = {"/keep-alive", "/health"}
+    if request.url.path in skip_paths:
+        return await call_next(request)
     
-    # Only strip trailing slashes from API routes (not root)
-    if path.startswith("/api/") and path != "/" and path.endswith("/"):
-        # Reconstruct URL without trailing slash
-        new_path = path.rstrip("/")
-        new_url = request.url.replace(path=new_path)
-        
-        # Modify the request scope
-        request.scope["path"] = new_path
-        if "raw_path" in request.scope:
-            request.scope["raw_path"] = new_path.encode()
-        
-        logger.info(f"🔄 Stripped trailing slash: {path} → {new_path}")
-    
+    start_time = time.time()
     response = await call_next(request)
+    duration = time.time() - start_time
     
-    # Add security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Log slow requests (>1 second) or all requests if in debug mode
+    if duration > 1.0:  # Only log slow requests
+        logger.warning(
+            f"🐌 SLOW REQUEST: {request.method} {request.url.path} "
+            f"took {duration:.2f}s (status: {response.status_code})"
+        )
+    else:
+        logger.debug(
+            f"✅ {request.method} {request.url.path} "
+            f"completed in {duration:.3f}s (status: {response.status_code})"
+        )
     
     return response
 

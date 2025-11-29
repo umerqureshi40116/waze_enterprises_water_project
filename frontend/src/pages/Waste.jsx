@@ -61,7 +61,7 @@ const Waste = () => {
   const fetchData = async () => {
     try {
       const [wastesRes, itemsRes] = await Promise.all([
-        api.get('/wastes/'),
+        api.get('/wastes'),
         api.get('/stocks/items')
       ]);
       setWastes(wastesRes.data);
@@ -80,7 +80,7 @@ const Waste = () => {
         await api.put(`/wastes/${formData.id}`, formData);
         toast.success('Waste updated successfully');
       } else {
-        await api.post('/wastes/', formData);
+        await api.post('/wastes', formData);
         toast.success('Waste recorded successfully');
       }
       setShowModal(false);
