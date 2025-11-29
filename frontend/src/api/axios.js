@@ -56,6 +56,19 @@ const api = axios.create({
 
 // Request interceptor to add token and log requests
 api.interceptors.request.use(config => {
+  // CRITICAL: Force HTTPS on all non-localhost URLs
+  if (config.url && !config.url.startsWith('/')) {
+    // Absolute URL
+    if (config.url.startsWith('http://')) {
+      config.url = config.url.replace('http://', 'https://');
+      console.log('🔒 FORCED HTTPS in config.url:', config.url);
+    }
+  }
+  if (config.baseURL && config.baseURL.startsWith('http://')) {
+    config.baseURL = config.baseURL.replace('http://', 'https://');
+    console.log('🔒 FORCED HTTPS in config.baseURL:', config.baseURL);
+  }
+  
   console.log('🌐 API Request:', {
     method: config.method,
     url: config.url,
