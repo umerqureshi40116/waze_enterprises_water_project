@@ -19,6 +19,12 @@ async def create_blow_process(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new blow process (convert preform to bottle)"""
+    # DEBUG: Log incoming data
+    print(f"\n📊 BLOW CREATE - Input received:")
+    print(f"  input_quantity: {blow.input_quantity}")
+    print(f"  output_quantity: {blow.output_quantity}")
+    print(f"  waste_quantity: {blow.waste_quantity}")
+    
     # Check that preform item exists
     from_item = db.query(Item).filter(Item.id == blow.from_item_id).first()
     if not from_item:
@@ -56,10 +62,13 @@ async def create_blow_process(
             raise HTTPException(status_code=400, detail="Target item not found")
         # Allow any item type to be produced (not just bottles)
     
-    # Calculate output and waste
-    # Assuming 95% efficiency by default, can be adjusted
-    output_quantity = int(blow.input_quantity * 0.95)
-    waste_quantity = blow.input_quantity - output_quantity
+    # ✅ Use manually entered output and waste quantities from frontend
+    output_quantity = blow.output_quantity
+    waste_quantity = blow.waste_quantity
+    
+    print(f"\n📊 BLOW CREATE - After assignment:")
+    print(f"  output_quantity: {output_quantity}")
+    print(f"  waste_quantity: {waste_quantity}")
     
     # ✅ FIXED: Prevent division by zero for efficiency rate
     if blow.input_quantity <= 0:
@@ -68,7 +77,10 @@ async def create_blow_process(
             detail="Input quantity must be greater than 0"
         )
     
+    # Calculate efficiency rate based on actual output
     efficiency_rate = (output_quantity / blow.input_quantity) * 100
+    
+    print(f"  efficiency_rate: {efficiency_rate}%")
     
     # ✅ FIXED: Validate that waste is never negative
     if waste_quantity < 0:
@@ -93,6 +105,11 @@ async def create_blow_process(
         notes=blow.notes
     )
     db.add(db_blow)
+    
+    print(f"\n📊 BLOW CREATE - Saved to DB:")
+    print(f"  output_quantity: {db_blow.output_quantity}")
+    print(f"  waste_quantity: {db_blow.waste_quantity}")
+    print(f"  efficiency_rate: {db_blow.efficiency_rate}%\n")
     
     # Update from_item stock (reduce preforms)
     before_from = from_stock.quantity
@@ -188,6 +205,14 @@ async def update_blow_process(
         raise HTTPException(status_code=404, detail="Blow process not found")
     
     update_data = blow_update.dict(exclude_unset=True)
+    
+    # If output_quantity or waste_quantity changed, recalculate efficiency_rate
+    if 'output_quantity' in update_data or 'waste_quantity' in update_data:
+        output_qty = update_data.get('output_quantity', blow.output_quantity)
+        if blow.input_quantity > 0:
+            efficiency_rate = (output_qty / blow.input_quantity) * 100
+            update_data['efficiency_rate'] = efficiency_rate
+    
     for field, value in update_data.items():
         setattr(blow, field, value)
     

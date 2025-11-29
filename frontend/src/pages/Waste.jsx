@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, FileDown } from 'lucide-react';
+import { Plus, Trash2, FileDown, X } from 'lucide-react';
 import { generateWasteId } from '../utils/idGenerator';
 import { useAuth } from '../context/AuthContext';
 import { formatDate } from '../utils/currency';
+import ItemSelect from '../components/ItemSelect';
 
 const Waste = () => {
   const { user } = useAuth();
@@ -137,7 +138,7 @@ const Waste = () => {
       link.setAttribute('download', `waste-records-all-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
@@ -161,7 +162,7 @@ const Waste = () => {
       link.setAttribute('download', `waste-records-selected-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
@@ -297,7 +298,15 @@ const Waste = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{editMode ? 'Edit Waste' : 'Record Waste'}</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">{editMode ? 'Edit Waste' : 'Record Waste'}</h2>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Waste ID</label>
@@ -311,20 +320,35 @@ const Waste = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Item</label>
-                <select
-                  value={formData.item_id}
-                  onChange={(e) => setFormData({ ...formData, item_id: e.target.value })}
-                  className="input"
-                  required
-                >
-                  <option value="">Select Item</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} - 📊 Stock: {item.current_stock}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Item * (type to search or add new)</label>
+                <ItemSelect
+                  items={items}
+                  value={formData.item_id ? items.find(i => i.id === formData.item_id)?.name || '' : ''}
+                  onChange={async (selectedName) => {
+                    try {
+                      // Try to find existing item by name
+                      const existingItem = items.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+                      
+                      if (existingItem) {
+                        setFormData({ ...formData, item_id: existingItem.id });
+                      } else {
+                        // Auto-create new item
+                        const response = await api.post('/stocks/items/auto-create', { name: selectedName });
+                        const newItem = response.data.item;
+                        if (!newItem || !newItem.id) {
+                          throw new Error('Invalid response: missing item data');
+                        }
+                        setFormData({ ...formData, item_id: newItem.id });
+                        // Update items list with new item
+                        setItems([...items, newItem]);
+                        toast.success(`Item "${selectedName}" created successfully`);
+                      }
+                    } catch (error) {
+                      toast.error(error.response?.data?.detail || 'Failed to create item');
+                    }
+                  }}
+                  placeholder="Search items or type to create new..."
+                />
                 {formData.item_id && (
                   <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-900 font-medium">
                     📦 Available Stock: <span className="font-bold text-lg text-blue-600">{getItemStock(formData.item_id)}</span> units

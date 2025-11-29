@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Edit2, Trash2, Download, FileDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Download, FileDown, X } from 'lucide-react';
 import { generateBlowId } from '../utils/idGenerator';
 import { useAuth } from '../context/AuthContext';
 import ItemSelect from '../components/ItemSelect';
@@ -19,6 +19,8 @@ const BlowProcess = () => {
     from_item_id: '',
     to_item_id: '',
     input_quantity: '',
+    output_quantity: '',
+    waste_quantity: '',
     blow_cost_per_unit: '',
     notes: ''
   });
@@ -73,9 +75,25 @@ const BlowProcess = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Convert string values to proper types and calculate waste
+      const input = parseInt(formData.input_quantity) || 0;
+      const output = parseInt(formData.output_quantity) || 0;
+      const waste = Math.max(0, input - output);
+      
+      console.log('💾 SUBMIT DATA:', {
+        input_quantity: input,
+        output_quantity: output,
+        waste_quantity: waste,
+        calculation: `${input} - ${output} = ${waste}`
+      });
+
       // Use manually selected bottle if provided, otherwise use auto-selected bottle
       const dataToSubmit = {
         ...formData,
+        input_quantity: input,
+        output_quantity: output,
+        waste_quantity: waste,
+        blow_cost_per_unit: parseFloat(formData.blow_cost_per_unit) || 0,
         to_item_id: formData.to_item_id || autoSelectedBottle?.id || null  // Manual > Auto > Backend determination
       };
       
@@ -110,8 +128,10 @@ const BlowProcess = () => {
     setFormData({
       id: blow.id,
       from_item_id: blow.from_item_id,
-      to_item_id: blow.to_item_id,  // Keep to_item_id for editing
+      to_item_id: blow.to_item_id,
       input_quantity: blow.input_quantity,
+      output_quantity: blow.output_quantity,
+      waste_quantity: blow.waste_quantity,
       blow_cost_per_unit: blow.blow_cost_per_unit,
       notes: blow.notes || ''
     });
@@ -126,6 +146,8 @@ const BlowProcess = () => {
       from_item_id: '',
       to_item_id: '',
       input_quantity: '',
+      output_quantity: '',
+      waste_quantity: '',
       blow_cost_per_unit: '',
       notes: ''
     });
@@ -166,9 +188,9 @@ const BlowProcess = () => {
     i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
   ) : null;
   
-  // Save is disabled if: no preform, no bottle (auto or manual), or no input qty
-  // Stock validation is done on backend - we don't validate here
-  const saveDisabled = !formData.from_item_id || (!formData.to_item_id && !autoSelectedBottle) || inputQtyNum <= 0;
+  // Save is disabled if: no preform, no bottle (auto or manual), no input qty, or no output qty
+  // Waste is auto-calculated, so doesn't need to be validated
+  const saveDisabled = !formData.from_item_id || (!formData.to_item_id && !autoSelectedBottle) || inputQtyNum <= 0 || !formData.output_quantity;
 
   // ✅ Currency formatter for PKR
   const formatPKR = (amount) => {
@@ -204,14 +226,14 @@ const BlowProcess = () => {
     if (preformSize === 0 || bottleSize === 0) return 0;
     
     // Ratio: 500ml preform can produce 500ml bottle (1:1 by size, but may vary)
-    // If preform size matches bottle size, output = input (assuming 95% efficiency)
+    // If preform size matches bottle size, output = input
     if (preformSize === bottleSize) {
-      return Math.floor(inputQty * 0.95); // 95% efficiency
+      return inputQty;
     }
     
     // If sizes don't match, calculate proportionally
     const ratio = preformSize / bottleSize;
-    return Math.floor(inputQty * ratio * 0.95);
+    return Math.floor(inputQty * ratio);
   };
 
   // Get available preform quantity for selected item
@@ -251,7 +273,7 @@ const BlowProcess = () => {
       link.setAttribute('download', `blow-processes-all-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
@@ -275,7 +297,7 @@ const BlowProcess = () => {
       link.setAttribute('download', `blow-processes-selected-${new Date().toISOString().split('T')[0]}.xlsx`);
       document.body.appendChild(link);
       link.click();
-      link.parentNode.removeChild(link);
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('Excel file downloaded successfully');
     } catch (error) {
@@ -408,210 +430,263 @@ const BlowProcess = () => {
         </div>
       </div>
 
-      {/* Modal for new blow process */}
+      {/* Slide-out Panel for Form */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{editMode ? 'Edit Blow Process' : 'New Blow Process'}</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Process ID</label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  className="input"
-                  required
-                  disabled={editMode}
-                />
-              </div>
+        <>
+          {/* Overlay */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-30 z-40 transition-opacity"
+            onClick={() => { setShowModal(false); resetForm(); }}
+          />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">From (Item - type to search or add)</label>
-                <ItemSelect
-                  items={allItems}
-                  value={formData.from_item_id ? items.find(i => i.id === formData.from_item_id)?.name || '' : ''}
-                  onChange={async (selectedName) => {
-                    console.log('🔄 BlowProcess item select (From):', selectedName);
-                    
-                    try {
-                      // Try to find existing preform
-                      const existingPreform = preforms.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+          {/* Slide-out Panel */}
+          <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 overflow-y-auto transform transition-transform duration-300 ease-out">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">{editMode ? 'Edit Blow Process' : 'New Blow Process'}</h2>
+              <button
+                onClick={() => { setShowModal(false); resetForm(); }}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <div className="px-6 py-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Process ID</label>
+                  <input
+                    type="text"
+                    value={formData.id}
+                    onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                    className="input"
+                    required
+                    disabled={editMode}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">From (Item - type to search or add)</label>
+                  <ItemSelect
+                    items={allItems}
+                    value={formData.from_item_id ? items.find(i => i.id === formData.from_item_id)?.name || '' : ''}
+                    onChange={async (selectedName) => {
+                      console.log('🔄 BlowProcess item select (From):', selectedName);
                       
-                      if (existingPreform) {
-                        console.log('✅ Found existing preform:', existingPreform.id);
-                        setFormData({ ...formData, from_item_id: existingPreform.id });
-                      } else {
-                        // Auto-create new preform with default type
-                        console.log('📝 Creating new preform:', selectedName);
-                        const response = await api.post('/stocks/items/auto-create', { 
-                          name: selectedName,
-                          type: 'preform'
-                        });
-                        const newPreform = response.data.item;
-                        console.log('✅ Auto-created preform:', newPreform.id);
-                        setFormData({ ...formData, from_item_id: newPreform.id });
+                      try {
+                        // Try to find existing preform
+                        const existingPreform = preforms.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
                         
-                        // Refresh items list to include new preform
-                        try {
-                          const itemsRes = await api.get('/stocks/items');
-                          setItems(itemsRes.data);  // ✅ Update state with new items list
-                          console.log('✅ Items list refreshed with new preform');
-                        } catch (err) {
-                          console.warn('Could not refresh items list:', err);
-                        }
-                      }
-                    } catch (error) {
-                      console.error('❌ Error with preform selection:', error.response?.data || error.message);
-                      toast.error(error.response?.data?.detail || 'Error processing preform selection');
-                    }
-                  }}
-                  placeholder="🔍 Select or type preform name..."
-                />
-                {formData.from_item_id && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Available: <span className="font-medium">{availablePreformQty}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Bottle selection with auto-suggest or manual override */}
-              {formData.from_item_id && (() => {
-                const selectedPreform = items.find(i => i.id === formData.from_item_id);
-                const autoBottle = selectedPreform ? items.find(i => 
-                  i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
-                ) : null;
-                
-                // Get all items for ItemSelect (not just bottles)
-                const allSelectableItems = items;
-                
-                return (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">To (Item - type to search or add)</label>
-                    <div className="space-y-2">
-                      <ItemSelect
-                        items={allSelectableItems}
-                        value={formData.to_item_id ? items.find(i => i.id === formData.to_item_id)?.name || '' : (autoBottle?.name || '')}
-                        onChange={async (selectedName) => {
-                          console.log('🔄 BlowProcess item select (To):', selectedName);
+                        if (existingPreform) {
+                          console.log('✅ Found existing preform:', existingPreform.id);
+                          setFormData({ ...formData, from_item_id: existingPreform.id });
+                        } else {
+                          // Auto-create new preform with default type
+                          console.log('📝 Creating new preform:', selectedName);
+                          const response = await api.post('/stocks/items/auto-create', { 
+                            name: selectedName,
+                            type: 'preform'
+                          });
+                          const newPreform = response.data.item;
+                          console.log('✅ Auto-created preform:', newPreform.id);
+                          setFormData({ ...formData, from_item_id: newPreform.id });
                           
+                          // Refresh items list to include new preform
                           try {
-                            // Try to find existing bottle
-                            const existingBottle = bottles.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
-                            
-                            if (existingBottle) {
-                              console.log('✅ Found existing bottle:', existingBottle.id);
-                              setFormData({ ...formData, to_item_id: existingBottle.id });
-                            } else {
-                              // Auto-create new bottle with preform's size/grade if available
-                              console.log('📝 Creating new bottle:', selectedName);
-                              const bottleData = { 
-                                name: selectedName,
-                                type: 'bottle'
-                              };
-                              
-                              // Inherit size and grade from preform if available
-                              if (selectedPreform) {
-                                bottleData.size = selectedPreform.size;
-                                bottleData.grade = selectedPreform.grade;
-                              }
-                              
-                              const response = await api.post('/stocks/items/auto-create', bottleData);
-                              const newBottle = response.data.item;
-                              console.log('✅ Auto-created bottle:', newBottle.id);
-                              setFormData({ ...formData, to_item_id: newBottle.id });
-                              
-                              // Refresh items list to include new bottle
-                              try {
-                                const itemsRes = await api.get('/stocks/items');
-                                setItems(itemsRes.data);  // ✅ Update state with new items list
-                                console.log('✅ Items list refreshed with new bottle');
-                              } catch (err) {
-                                console.warn('Could not refresh items list:', err);
-                              }
-                            }
-                          } catch (error) {
-                            console.error('❌ Error with bottle selection:', error.response?.data || error.message);
-                            toast.error(error.response?.data?.detail || 'Error processing bottle selection');
+                            const itemsRes = await api.get('/stocks/items');
+                            setItems(itemsRes.data);  // ✅ Update state with new items list
+                            console.log('✅ Items list refreshed with new preform');
+                          } catch (err) {
+                            console.warn('Could not refresh items list:', err);
                           }
-                        }}
-                        placeholder="🔍 Select or type bottle name..."
-                      />
-                      {autoBottle && !formData.to_item_id && (
-                        <p className="text-xs text-green-600">💡 Tip: Auto-matched to <strong>{autoBottle.name}</strong> (same size/grade as preform)</p>
-                      )}
-                      {formData.to_item_id && (
-                        <p className="text-xs text-blue-600">✓ Bottle selected: <strong>{items.find(i => i.id === formData.to_item_id)?.name}</strong></p>
-                      )}
+                        }
+                      } catch (error) {
+                        console.error('❌ Error with preform selection:', error.response?.data || error.message);
+                        toast.error(error.response?.data?.detail || 'Error processing preform selection');
+                      }
+                    }}
+                    placeholder="🔍 Select or type preform name..."
+                  />
+                  {formData.from_item_id && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Available: <span className="font-medium">{availablePreformQty}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Bottle selection with auto-suggest or manual override */}
+                {formData.from_item_id && (() => {
+                  const selectedPreform = items.find(i => i.id === formData.from_item_id);
+                  const autoBottle = selectedPreform ? items.find(i => 
+                    i.type === 'bottle' && i.size === selectedPreform.size && i.grade === selectedPreform.grade
+                  ) : null;
+                  
+                  // Get all items for ItemSelect (not just bottles)
+                  const allSelectableItems = items;
+                  
+                  return (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">To (Item - type to search or add)</label>
+                      <div className="space-y-2">
+                        <ItemSelect
+                          items={allSelectableItems}
+                          value={formData.to_item_id ? items.find(i => i.id === formData.to_item_id)?.name || '' : (autoBottle?.name || '')}
+                          onChange={async (selectedName) => {
+                            console.log('🔄 BlowProcess item select (To):', selectedName);
+                            
+                            try {
+                              // Try to find existing bottle
+                              const existingBottle = bottles.find(i => i.name.toLowerCase() === selectedName.toLowerCase());
+                              
+                              if (existingBottle) {
+                                console.log('✅ Found existing bottle:', existingBottle.id);
+                                setFormData({ ...formData, to_item_id: existingBottle.id });
+                              } else {
+                                // Auto-create new bottle with preform's size/grade if available
+                                console.log('📝 Creating new bottle:', selectedName);
+                                const bottleData = { 
+                                  name: selectedName,
+                                  type: 'bottle'
+                                };
+                                
+                                // Inherit size and grade from preform if available
+                                if (selectedPreform) {
+                                  bottleData.size = selectedPreform.size;
+                                  bottleData.grade = selectedPreform.grade;
+                                }
+                                
+                                const response = await api.post('/stocks/items/auto-create', bottleData);
+                                const newBottle = response.data.item;
+                                console.log('✅ Auto-created bottle:', newBottle.id);
+                                setFormData({ ...formData, to_item_id: newBottle.id });
+                                
+                                // Refresh items list to include new bottle
+                                try {
+                                  const itemsRes = await api.get('/stocks/items');
+                                  setItems(itemsRes.data);  // ✅ Update state with new items list
+                                  console.log('✅ Items list refreshed with new bottle');
+                                } catch (err) {
+                                  console.warn('Could not refresh items list:', err);
+                                }
+                              }
+                            } catch (error) {
+                              console.error('❌ Error with bottle selection:', error.response?.data || error.message);
+                              toast.error(error.response?.data?.detail || 'Error processing bottle selection');
+                            }
+                          }}
+                          placeholder="🔍 Select or type bottle name..."
+                        />
+                        {autoBottle && !formData.to_item_id && (
+                          <p className="text-xs text-green-600">💡 Tip: Auto-matched to <strong>{autoBottle.name}</strong> (same size/grade as preform)</p>
+                        )}
+                        {formData.to_item_id && (
+                          <p className="text-xs text-blue-600">✓ Bottle selected: <strong>{items.find(i => i.id === formData.to_item_id)?.name}</strong></p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Input Quantity</label>
+                  <input
+                    type="number"
+                    value={formData.input_quantity}
+                    onChange={(e) => {
+                      const input = e.target.value;
+                      const output = parseInt(formData.output_quantity) || 0;
+                      const waste = Math.max(0, parseInt(input || 0) - output);
+                      setFormData({ 
+                        ...formData, 
+                        input_quantity: input,
+                        waste_quantity: waste.toString()
+                      });
+                    }}
+                    className="input"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Input Quantity</label>
-                <input
-                  type="number"
-                  value={formData.input_quantity}
-                  onChange={(e) => {
-                    const qty = e.target.value;
-                    setFormData({ ...formData, input_quantity: qty });
-                  }}
-                  className="input"
-                  required
-                />
-                {formData.input_quantity && formData.from_item_id && (
-                  <div className="text-sm text-gray-600 mt-1">
-                    {(formData.to_item_id || autoSelectedBottle) && (
-                      <p className="mt-1 text-gray-700">📦 Output: ~{calculateOutputQty(inputQtyNum, formData.from_item_id, formData.to_item_id || autoSelectedBottle.id)} units (95% efficiency)</p>
-                    )}
-                  </div>
-                )}
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Output Quantity *</label>
+                  <input
+                    type="number"
+                    value={formData.output_quantity}
+                    onChange={(e) => {
+                      const output = e.target.value;
+                      const input = parseInt(formData.input_quantity) || 0;
+                      const waste = Math.max(0, input - parseInt(output || 0));
+                      setFormData({ 
+                        ...formData, 
+                        output_quantity: output,
+                        waste_quantity: waste.toString()
+                      });
+                    }}
+                    className="input"
+                    required
+                    placeholder="Enter actual output produced"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">How many units were actually produced</p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Blow Cost Per Unit (PKR)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.blow_cost_per_unit}
-                  onChange={(e) => setFormData({ ...formData, blow_cost_per_unit: e.target.value })}
-                  className="input"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Waste Quantity (Auto-calculated)</label>
+                  <input
+                    type="number"
+                    value={formData.waste_quantity}
+                    onChange={(e) => setFormData({ ...formData, waste_quantity: e.target.value })}
+                    className="input bg-gray-50"
+                    placeholder="Auto-calculated from input - output"
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Automatically calculated: Input ({formData.input_quantity || 0}) - Output ({formData.output_quantity || 0}) = Waste ({formData.waste_quantity || 0})</p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="input"
-                  rows="2"
-                  placeholder="Add any notes..."
-                ></textarea>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Blow Cost Per Unit (PKR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.blow_cost_per_unit}
+                    onChange={(e) => setFormData({ ...formData, blow_cost_per_unit: e.target.value })}
+                    className="input"
+                    required
+                  />
+                </div>
 
-              <div className="flex gap-4 pt-4">
-                <button 
-                  type="submit" 
-                  className="btn btn-primary flex-1"
-                  disabled={saveDisabled}
-                >
-                  {editMode ? 'Update Process' : 'Process'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); resetForm(); }}
-                  className="btn btn-secondary flex-1"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    className="input"
+                    rows="2"
+                    placeholder="Add any notes..."
+                  ></textarea>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary flex-1"
+                    disabled={saveDisabled}
+                  >
+                    {editMode ? 'Update Process' : 'Process'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowModal(false); resetForm(); }}
+                    className="btn btn-secondary flex-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

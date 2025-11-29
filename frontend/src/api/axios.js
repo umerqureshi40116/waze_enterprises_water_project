@@ -4,8 +4,14 @@ import axios from 'axios';
 let API_URL = import.meta.env.VITE_API_BASE_URL;
 
 if (!API_URL) {
-  // Fallback to Railway backend URL (production)
-  API_URL = 'https://wazeenterpriseswaterproject-production.up.railway.app/api/v1';
+  // Use localhost for development, Railway for production
+  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isDevelopment) {
+    API_URL = 'http://localhost:8000/api/v1';
+  } else {
+    // Fallback to Railway backend URL (production)
+    API_URL = 'https://wazeenterpriseswaterproject-production.up.railway.app/api/v1';
+  }
 }
 
 console.log('📡 API Base URL:', API_URL);
