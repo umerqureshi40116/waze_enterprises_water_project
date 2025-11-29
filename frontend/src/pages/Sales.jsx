@@ -67,23 +67,19 @@ const Sales = () => {
       console.log('📡 Fetching sales data from:', api.defaults.baseURL);
       
       const [salesRes, customersRes, itemsRes] = await Promise.all([
-        api.get('/sales').catch(err => {
-          console.error('❌ Sales API error:', err.message, err.response?.status, err.response?.data);
-          throw err;
-        }),
-        api.get('/customers').catch(err => {
-          console.error('❌ Customers API error:', err.message, err.response?.status, err.response?.data);
-          throw err;
-        }),
-        api.get('/stocks/items').catch(err => {
-          console.error('❌ Items API error:', err.message, err.response?.status, err.response?.data);
-          throw err;
-        })
-      ]);
+        api.get('/sales/'),
+        api.get('/customers/'),
+        api.get('/stocks/items')
+      ])
 
       console.log('✅ Sales data fetched:', salesRes.data);
       console.log('✅ Customers data fetched:', customersRes.data);
       console.log('✅ Items data fetched:', itemsRes.data);
+      
+      if (!itemsRes.data || itemsRes.data.length === 0) {
+        console.warn('⚠️  No items returned from backend!');
+        toast.error('❌ No items loaded - database may be empty');
+      }
 
       setSales(Array.isArray(salesRes.data) ? salesRes.data : []);
       setCustomers(Array.isArray(customersRes.data) ? customersRes.data : []);
