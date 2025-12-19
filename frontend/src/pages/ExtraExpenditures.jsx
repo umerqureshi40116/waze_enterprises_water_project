@@ -174,6 +174,90 @@ const ExtraExpenditures = () => {
     }
   };
 
+  // Download single expenditure as PDF
+  const downloadExpenditurePDF = async (expenditure_id) => {
+    try {
+      const response = await api.get(`/extra-expenditures/pdf/${expenditure_id}`, {
+        responseType: 'blob',
+      });
+      // Check if response is valid PDF
+      if (response.data && response.data.size > 0) {
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `expense_record_${expenditure_id}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // Delay revokeObjectURL to allow download to complete
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        toast.success('Expense record downloading...');
+      } else {
+        toast.error('Invalid PDF response');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      // Check if it's a network error vs actual failure
+      if (error.response && error.response.status >= 400) {
+        toast.error('Failed to download expense record');
+      }
+      // Otherwise assume download initiated (IDM may have intercepted)
+    }
+  };
+
+  // Download selected expenditures as PDFs
+  const downloadSelectedExpenditurePDF = async () => {
+    if (selectedExpenditures.length === 0) {
+      toast.error('Please select at least one expenditure');
+      return;
+    }
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (const expenditureId of selectedExpenditures) {
+      try {
+        const response = await api.get(`/extra-expenditures/pdf/${expenditureId}`, {
+          responseType: 'blob',
+        });
+        // Check if response is valid PDF
+        if (response.data && response.data.size > 0) {
+          const url = window.URL.createObjectURL(response.data);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `expense_record_${expenditureId}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          // Delay revokeObjectURL to allow download to complete
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          successCount++;
+        } else {
+          failureCount++;
+        }
+      } catch (error) {
+        console.error(`Download error for expenditure ${expenditureId}:`, error);
+        // Only count as failure if it's an actual HTTP error
+        if (error.response && error.response.status >= 400) {
+          failureCount++;
+        } else {
+          // Assume download initiated (IDM may have intercepted)
+          successCount++;
+        }
+      }
+      // Small delay between downloads
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    // Show appropriate message
+    if (successCount > 0 && failureCount === 0) {
+      toast.success(`Downloading ${successCount} expense record(s)...`);
+    } else if (successCount > 0) {
+      toast.warning(`Downloaded ${successCount}, failed ${failureCount}`);
+    } else {
+      toast.error('Failed to download expense records');
+    }
+  };
+
   const totalAmount = filteredExpenditures.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
 
   if (loading) {
@@ -210,6 +294,18 @@ const ExtraExpenditures = () => {
             title="Download selected expenditures as Excel file"
           >
             <FileDown className="w-4 h-4" /> Excel Selected
+          </button>
+          <button
+            onClick={() => downloadSelectedExpenditurePDF()}
+            disabled={selectedExpenditures.length === 0}
+            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+              selectedExpenditures.length === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-800 border border-blue-300'
+            }`}
+            title="Download selected expenditures as PDF"
+          >
+            <FileDown className="w-4 h-4" /> PDF Selected
           </button>
           <button
             onClick={() => { setShowModal(true); resetForm(); }}
@@ -308,6 +404,9 @@ const ExtraExpenditures = () => {
                   <td className="table-cell text-sm text-gray-600">{expenditure.notes}</td>
                   <td className="table-cell">
                     <div className="flex gap-2">
+                      <button onClick={() => downloadExpenditurePDF(expenditure.id)} className="text-blue-600 hover:text-blue-800" title="Download PDF">
+                        📥
+                      </button>
                       {user?.role === 'admin' && (
                         <>
                           <button

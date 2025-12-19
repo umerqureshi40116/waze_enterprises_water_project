@@ -11,6 +11,11 @@ from fastapi.responses import StreamingResponse
 import io
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from app.utils.invoice_pdf_generator import generate_expenditure_invoice_pdf
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -254,3 +259,37 @@ async def delete_expenditure(
     db.delete(db_expenditure)
     db.commit()
     return {"message": "Expenditure deleted successfully"}
+
+
+@router.get("/pdf/{expenditure_id}")
+async def download_expenditure_invoice(
+    expenditure_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download operating expense record as PDF invoice"""
+    try:
+        # Get expenditure record
+        expenditure = db.query(ExtraExpenditure).filter(ExtraExpenditure.id == expenditure_id).first()
+        if not expenditure:
+            raise HTTPException(status_code=404, detail="Expenditure record not found")
+        
+        # Generate expenditure report PDF in a thread
+        pdf_buffer = await asyncio.to_thread(
+            generate_expenditure_invoice_pdf,
+            expenditure=expenditure
+        )
+        
+        filename = f"expense_record_{expenditure_id}_{expenditure.date.strftime('%Y%m%d') if hasattr(expenditure, 'date') and expenditure.date else 'unknown'}.pdf"
+        
+        return StreamingResponse(
+            iter([pdf_buffer.getvalue()]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating expenditure invoice PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")

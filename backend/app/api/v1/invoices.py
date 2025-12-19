@@ -8,11 +8,11 @@ from typing import List
 from app.db.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.models.transaction import Sale, Purchase
+from app.models.transaction import Sale, Purchase, Blow, Waste
 from app.models.item import Item
 from app.models.party import Customer, Supplier
 from fastapi.responses import StreamingResponse
-from app.utils.invoice_pdf_generator import generate_sales_invoice_pdf, generate_purchase_invoice_pdf
+from app.utils.invoice_pdf_generator import generate_sales_invoice_pdf, generate_purchase_invoice_pdf, generate_blow_invoice_pdf, generate_waste_invoice_pdf
 import logging
 import asyncio
 
@@ -129,4 +129,91 @@ async def download_purchase_invoice(
         raise
     except Exception as e:
         logger.error(f"Error generating purchase invoice PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
+
+
+@router.get("/invoice/blow/{blow_id}")
+async def download_blow_invoice(
+    blow_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Download a professional invoice PDF for a blow process
+    Format: Similar to Sales/Purchase invoices
+    """
+    try:
+        # Get blow record
+        blow = db.query(Blow).filter(Blow.id == blow_id).first()
+        if not blow:
+            raise HTTPException(status_code=404, detail="Blow record not found")
+        
+        # Get items involved
+        from_item = db.query(Item).filter(Item.id == blow.from_item_id).first()
+        to_item = db.query(Item).filter(Item.id == blow.to_item_id).first()
+        
+        if not from_item or not to_item:
+            raise HTTPException(status_code=404, detail="Items not found")
+        
+        # Generate blow process report PDF in a thread
+        pdf_buffer = await asyncio.to_thread(
+            generate_blow_invoice_pdf,
+            blow=blow,
+            from_item=from_item,
+            to_item=to_item,
+            current_user=current_user
+        )
+        
+        filename = f"blow_process_{blow_id}_{blow.date_time.strftime('%Y%m%d') if hasattr(blow, 'date_time') and blow.date_time else 'unknown'}.pdf"
+        
+        return StreamingResponse(
+            iter([pdf_buffer.getvalue()]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating blow invoice PDF: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
+
+
+@router.get("/invoice/waste/{waste_id}")
+async def download_waste_invoice(
+    waste_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Download waste record as PDF invoice"""
+    try:
+        # Get waste record
+        waste = db.query(Waste).filter(Waste.id == waste_id).first()
+        if not waste:
+            raise HTTPException(status_code=404, detail="Waste record not found")
+        
+        # Get item involved
+        item = db.query(Item).filter(Item.id == waste.item_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        
+        # Generate waste report PDF in a thread
+        pdf_buffer = await asyncio.to_thread(
+            generate_waste_invoice_pdf,
+            waste=waste,
+            item=item
+        )
+        
+        filename = f"waste_record_{waste_id}_{waste.date.strftime('%Y%m%d') if hasattr(waste, 'date') and waste.date else 'unknown'}.pdf"
+        
+        return StreamingResponse(
+            iter([pdf_buffer.getvalue()]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating waste invoice PDF: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")

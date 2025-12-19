@@ -556,3 +556,216 @@ def generate_purchase_invoice_pdf(purchase_bill, supplier, line_items, items_db)
     )
     
     return pdf_buffer
+
+
+def generate_blow_invoice_pdf(blow, from_item, to_item, current_user):
+    """
+    Generate Blow Process PDF using the same professional format as Sales/Purchase invoices
+    """
+    generator = InvoiceReportGenerator()
+    
+    # Get date - check both date_time and date attributes
+    try:
+        if hasattr(blow, 'date_time') and blow.date_time:
+            invoice_date = blow.date_time.strftime('%d-%m-%Y')
+        elif hasattr(blow, 'date') and blow.date:
+            invoice_date = blow.date.strftime('%d-%m-%Y')
+        else:
+            invoice_date = datetime.now().strftime('%d-%m-%Y')
+    except:
+        invoice_date = datetime.now().strftime('%d-%m-%Y')
+    
+    # Get item names safely
+    try:
+        from_item_name = from_item.name if hasattr(from_item, 'name') else f"Item {from_item.id}"
+    except:
+        from_item_name = 'Unknown Item'
+    
+    try:
+        to_item_name = to_item.name if hasattr(to_item, 'name') else f"Item {to_item.id}"
+    except:
+        to_item_name = 'Unknown Item'
+    
+    # Get user name safely
+    try:
+        user_name = current_user.username if hasattr(current_user, 'username') else 'System'
+    except:
+        user_name = 'System'
+    
+    # Get quantities safely
+    try:
+        input_qty = float(blow.input_quantity) if hasattr(blow, 'input_quantity') and blow.input_quantity else float(blow.quantity)
+    except:
+        input_qty = 0
+    
+    try:
+        output_qty = float(blow.output_quantity) if hasattr(blow, 'output_quantity') and blow.output_quantity else 0
+    except:
+        output_qty = 0
+    
+    try:
+        waste_qty = float(blow.waste_quantity) if hasattr(blow, 'waste_quantity') and blow.waste_quantity else 0
+    except:
+        waste_qty = 0
+    
+    try:
+        cost_per_unit = float(blow.blow_cost_per_unit) if blow.blow_cost_per_unit else 0
+    except:
+        cost_per_unit = 0
+    
+    # Create items array for the invoice (single item - the blow process)
+    blow_items = [
+        {
+            'item_name': f"{from_item_name} → {to_item_name}",
+            'quantity': input_qty,
+            'unit_price': cost_per_unit,
+            'amount': input_qty * cost_per_unit
+        }
+    ]
+    
+    # Generate PDF using the same professional format as Sales/Purchase
+    pdf_buffer = generator.generate_invoice_pdf(
+        company_name="Waze Enterprises - Water Bottle Division",
+        company_address="Street S-6, Rawat Industrial Area, Rawalpindi",
+        company_phone="0343-9998954",
+        company_email="",
+        invoice_no=f"BLOW-{blow.id}",
+        invoice_date=invoice_date,
+        bill_to_name=user_name,
+        bill_to_address="Production Department",
+        bill_to_contact="",
+        items=blow_items,
+        terms=f"Output: {output_qty} units | Waste: {waste_qty} units | Notes: {blow.notes if blow.notes else 'N/A'}",
+        received_amount=0,
+        payment_status="completed"
+    )
+    
+    return pdf_buffer
+
+
+def generate_waste_invoice_pdf(waste, item):
+    """
+    Generate Waste Record PDF using the same professional format as Sales/Purchase/Blow invoices
+    """
+    generator = InvoiceReportGenerator()
+    
+    # Get date safely
+    try:
+        if hasattr(waste, 'date') and waste.date:
+            invoice_date = waste.date.strftime('%d-%m-%Y')
+        else:
+            invoice_date = datetime.now().strftime('%d-%m-%Y')
+    except:
+        invoice_date = datetime.now().strftime('%d-%m-%Y')
+    
+    # Get item name safely
+    try:
+        item_name = item.name if hasattr(item, 'name') else f"Item {item.id}"
+    except:
+        item_name = 'Unknown Item'
+    
+    # Get quantities safely
+    try:
+        quantity = float(waste.quantity) if waste.quantity else 0
+    except:
+        quantity = 0
+    
+    try:
+        price_per_unit = float(waste.price_per_unit) if waste.price_per_unit else 0
+    except:
+        price_per_unit = 0
+    
+    try:
+        total_price = float(waste.total_price) if waste.total_price else (quantity * price_per_unit)
+    except:
+        total_price = quantity * price_per_unit
+    
+    # Create items array for the invoice (single item - the waste record)
+    waste_items = [
+        {
+            'item_name': item_name,
+            'quantity': quantity,
+            'unit_price': price_per_unit,
+            'amount': total_price
+        }
+    ]
+    
+    # Generate PDF using the same professional format as Sales/Purchase/Blow
+    pdf_buffer = generator.generate_invoice_pdf(
+        company_name="Waze Enterprises - Water Bottle Division",
+        company_address="Street S-6, Rawat Industrial Area, Rawalpindi",
+        company_phone="0343-9998954",
+        company_email="",
+        invoice_no=f"WASTE-{waste.id}",
+        invoice_date=invoice_date,
+        bill_to_name="Waste Department",
+        bill_to_address="Inventory Management",
+        bill_to_contact="",
+        items=waste_items,
+        terms=f"Waste Notes: {waste.notes if waste.notes else 'N/A'} | Status: Disposed",
+        received_amount=0,
+        payment_status="completed"
+    )
+    
+    return pdf_buffer
+
+
+def generate_expenditure_invoice_pdf(expenditure):
+    """
+    Generate Operating Expense PDF using the same professional format as Sales/Purchase/Blow/Waste invoices
+    """
+    generator = InvoiceReportGenerator()
+    
+    # Get date safely
+    try:
+        if hasattr(expenditure, 'date') and expenditure.date:
+            invoice_date = expenditure.date.strftime('%d-%m-%Y')
+        else:
+            invoice_date = datetime.now().strftime('%d-%m-%Y')
+    except:
+        invoice_date = datetime.now().strftime('%d-%m-%Y')
+    
+    # Get expense type safely
+    try:
+        expense_type = expenditure.expense_type if hasattr(expenditure, 'expense_type') else 'Operating Expense'
+    except:
+        expense_type = 'Operating Expense'
+    
+    # Get amount safely
+    try:
+        amount = float(expenditure.amount) if expenditure.amount else 0
+    except:
+        amount = 0
+    
+    # Create items array for the invoice (single item - the expense)
+    expense_items = [
+        {
+            'item_name': expense_type,
+            'quantity': 1,
+            'unit_price': amount,
+            'amount': amount
+        }
+    ]
+    
+    # Get description for additional context
+    description = expenditure.description if hasattr(expenditure, 'description') and expenditure.description else 'N/A'
+    notes = expenditure.notes if hasattr(expenditure, 'notes') and expenditure.notes else 'N/A'
+    
+    # Generate PDF using the same professional format
+    pdf_buffer = generator.generate_invoice_pdf(
+        company_name="Waze Enterprises - Water Bottle Division",
+        company_address="Street S-6, Rawat Industrial Area, Rawalpindi",
+        company_phone="0343-9998954",
+        company_email="",
+        invoice_no=f"EXPENSE-{expenditure.id}",
+        invoice_date=invoice_date,
+        bill_to_name="Finance Department",
+        bill_to_address="Operating Expenses",
+        bill_to_contact="",
+        items=expense_items,
+        terms=f"Description: {description} | Notes: {notes} | Status: Recorded",
+        received_amount=0,
+        payment_status="completed"
+    )
+    
+    return pdf_buffer

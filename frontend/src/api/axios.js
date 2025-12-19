@@ -56,22 +56,27 @@ const api = axios.create({
 
 // Request interceptor to add token and log requests
 api.interceptors.request.use(config => {
-  // CRITICAL: Ensure baseURL is ALWAYS HTTPS
-  if (config.baseURL) {
-    if (config.baseURL.startsWith('http://')) {
-      const original = config.baseURL;
-      config.baseURL = config.baseURL.replace('http://', 'https://');
-      console.log('🔒 FIXED HTTP→HTTPS in baseURL:', original, '→', config.baseURL);
-    }
-  }
+  // IMPORTANT: Only force HTTPS on production URLs, NOT localhost
+  const isLocalhost = config.baseURL?.includes('localhost') || config.baseURL?.includes('127.0.0.1');
   
-  // CRITICAL: Force HTTPS on all non-localhost URLs
-  if (config.url && !config.url.startsWith('/')) {
-    // Absolute URL
-    if (config.url.startsWith('http://')) {
-      const original = config.url;
-      config.url = config.url.replace('http://', 'https://');
-      console.log('🔒 FIXED HTTP→HTTPS in url:', original, '→', config.url);
+  if (!isLocalhost) {
+    // CRITICAL: Ensure baseURL is ALWAYS HTTPS in production
+    if (config.baseURL) {
+      if (config.baseURL.startsWith('http://')) {
+        const original = config.baseURL;
+        config.baseURL = config.baseURL.replace('http://', 'https://');
+        console.log('🔒 FIXED HTTP→HTTPS in baseURL:', original, '→', config.baseURL);
+      }
+    }
+    
+    // CRITICAL: Force HTTPS on all non-localhost URLs
+    if (config.url && !config.url.startsWith('/')) {
+      // Absolute URL
+      if (config.url.startsWith('http://')) {
+        const original = config.url;
+        config.url = config.url.replace('http://', 'https://');
+        console.log('🔒 FIXED HTTP→HTTPS in url:', original, '→', config.url);
+      }
     }
   }
   
@@ -82,6 +87,7 @@ api.interceptors.request.use(config => {
     baseURL: config.baseURL,
     fullURL: fullURL,
     isHttps: fullURL.startsWith('https://'),
+    isLocalhost: isLocalhost,
     hasToken: !!localStorage.getItem("token")
   });
   

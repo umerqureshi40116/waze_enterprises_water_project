@@ -124,6 +124,90 @@ const BlowProcess = () => {
     }
   };
 
+  // Download blow process PDF
+  const downloadBlowPDF = async (blow_id) => {
+    try {
+      const response = await api.get(`/invoices/invoice/blow/${blow_id}`, {
+        responseType: 'blob',
+      });
+      // Check if response is valid PDF
+      if (response.data && response.data.size > 0) {
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `blow_process_${blow_id}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        // Delay revokeObjectURL to allow download to complete
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        toast.success('Blow process downloading...');
+      } else {
+        toast.error('Invalid PDF response');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      // Check if it's a network error vs actual failure
+      if (error.response && error.response.status >= 400) {
+        toast.error('Failed to download blow process');
+      }
+      // Otherwise assume download initiated (IDM may have intercepted)
+    }
+  };
+
+  // Download selected blows as PDFs
+  const downloadSelectedPDF = async () => {
+    if (selectedBlows.length === 0) {
+      toast.error('Please select at least one blow process');
+      return;
+    }
+    let successCount = 0;
+    let failureCount = 0;
+    
+    for (const blowId of selectedBlows) {
+      try {
+        const response = await api.get(`/invoices/invoice/blow/${blowId}`, {
+          responseType: 'blob',
+        });
+        // Check if response is valid PDF
+        if (response.data && response.data.size > 0) {
+          const url = window.URL.createObjectURL(response.data);
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', `blow_process_${blowId}.pdf`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          // Delay revokeObjectURL to allow download to complete
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          successCount++;
+        } else {
+          failureCount++;
+        }
+      } catch (error) {
+        console.error(`Download error for blow ${blowId}:`, error);
+        // Only count as failure if it's an actual HTTP error
+        if (error.response && error.response.status >= 400) {
+          failureCount++;
+        } else {
+          // Assume download initiated (IDM may have intercepted)
+          successCount++;
+        }
+      }
+      // Small delay between downloads
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    // Show appropriate message
+    if (successCount > 0 && failureCount === 0) {
+      toast.success(`Downloading ${successCount} blow process(es)...`);
+    } else if (successCount > 0) {
+      toast.warning(`Downloaded ${successCount}, failed ${failureCount}`);
+    } else {
+      toast.error('Failed to download blow processes');
+    }
+  };
+
   const handleEditBlow = (blow) => {
     setFormData({
       id: blow.id,
@@ -341,6 +425,18 @@ const BlowProcess = () => {
             <FileDown className="w-4 h-4" /> Excel Selected
           </button>
           <button
+            onClick={downloadSelectedPDF}
+            className={`btn flex items-center gap-2 ${
+              selectedBlows.length > 0
+                ? 'btn-success hover:bg-blue-700 text-white bg-blue-600'
+                : 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-300'
+            }`}
+            disabled={selectedBlows.length === 0}
+            title="Download selected blow processes as PDF"
+          >
+            <FileDown className="w-4 h-4" /> PDF Selected
+          </button>
+          <button
             onClick={() => { setShowModal(true); resetForm(); }}
             className="btn btn-primary flex items-center gap-2 ml-auto"
           >
@@ -411,6 +507,9 @@ const BlowProcess = () => {
                   <td className="table-cell">{formatPKR(blow.blow_cost_per_unit)}</td>
                   <td className="table-cell">
                     <div className="flex gap-2">
+                      <button onClick={() => downloadBlowPDF(blow.id)} className="text-blue-600 hover:text-blue-800" title="Download PDF">
+                        <FileDown size={18} />
+                      </button>
                       {user?.role === 'admin' && (
                         <>
                           <button onClick={() => handleEditBlow(blow)} className="text-orange-600 hover:text-orange-800" title="Edit">
