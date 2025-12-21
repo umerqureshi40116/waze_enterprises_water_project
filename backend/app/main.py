@@ -41,6 +41,10 @@ app.add_middleware(
 @app.middleware("http")
 async def enforce_https_redirects(request: Request, call_next):
     """Ensure that any redirects use HTTPS protocol to prevent mixed-content errors."""
+    # Skip API routes - let FastAPI handle them normally without redirect modification
+    if request.url.path.startswith("/api/"):
+        return await call_next(request)
+    
     response = await call_next(request)
     
     # If this is a redirect response (3xx), ensure Location header uses HTTPS

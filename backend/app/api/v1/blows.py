@@ -226,11 +226,54 @@ async def delete_blow_process(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
-    """Delete a blow process (Admin only)"""
+    """Delete a blow process (Admin only) and reverse stock changes"""
     blow = db.query(Blow).filter(Blow.id == blow_id).first()
     if not blow:
         raise HTTPException(status_code=404, detail="Blow process not found")
     
+    # REVERSE STOCK CHANGES
+    # 1. Reverse the reduction of from_item (preform) - add back the input_quantity
+    from_stock = db.query(Stock).filter(Stock.item_id == blow.from_item_id).first()
+    if from_stock:
+        before_from = from_stock.quantity
+        from_stock.quantity += blow.input_quantity  # Add back what was consumed
+        after_from = from_stock.quantity
+        
+        # Create reverse movement record
+        reverse_from_movement = StockMovement(
+            item_id=blow.from_item_id,
+            movement_type='adjustment',
+            quantity_change=blow.input_quantity,
+            reference_id=blow_id,
+            before_quantity=before_from,
+            after_quantity=after_from,
+            recorded_by=current_user.id,
+            notes=f"Stock reversal: Blow process deleted (returned preforms)"
+        )
+        db.add(reverse_from_movement)
+    
+    # 2. Reverse the addition to to_item (bottle) - subtract the output_quantity
+    to_stock = db.query(Stock).filter(Stock.item_id == blow.to_item_id).first()
+    if to_stock:
+        before_to = to_stock.quantity
+        to_stock.quantity -= blow.output_quantity  # Remove what was produced
+        after_to = to_stock.quantity
+        
+        # Create reverse movement record
+        reverse_to_movement = StockMovement(
+            item_id=blow.to_item_id,
+            movement_type='adjustment',
+            quantity_change=-blow.output_quantity,
+            reference_id=blow_id,
+            before_quantity=before_to,
+            after_quantity=after_to,
+            recorded_by=current_user.id,
+            notes=f"Stock reversal: Blow process deleted (removed produced bottles)"
+        )
+        db.add(reverse_to_movement)
+    
+    # Delete the blow process record
     db.delete(blow)
     db.commit()
-    return {"message": "Blow process deleted successfully"}
+    
+    return {"message": "Blow process deleted successfully and stock has been reversed"}
