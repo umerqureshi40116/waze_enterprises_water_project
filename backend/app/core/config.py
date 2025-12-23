@@ -23,8 +23,6 @@ class Settings(BaseSettings):
         # Vercel frontend URLs - CRITICAL for production
         "https://waze-enterprises-inventory-37jifatop-umers-projects-edd7abcf.vercel.app",
         "https://waze-enterprises-inventory.vercel.app",
-        # Allow all Vercel preview deployments
-        "https://*.vercel.app"
     ]
     
     # Allow dynamic CORS origins via environment variable
