@@ -59,61 +59,63 @@ if (isFrontendSecure && !isLocalhost && API_URL) {
   console.log('   🔒 Fallback HTTPS conversion:', originalURL + ' → ' + API_URL);
 }
 
-console.log('📡 FINAL API Base URL:', API_URL);
-console.log('🔗 Full URL will be used for all API calls');
+// ⚠️ CRITICAL: Ensure API_URL is ALWAYS HTTPS before creating axios instance
+if (API_URL && API_URL.startsWith('http://')) {
+  const original = API_URL;
+  API_URL = API_URL.replace('http://', 'https://');
+  console.log('🔒 CRITICAL FIX before axios creation:', original, '→', API_URL);
+}
 
+console.log('📡 FINAL API Base URL:', API_URL);
+console.log('🔗 All API calls will use this HTTPS baseURL');
+
+// Create axios instance with HTTPS baseURL
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  // CRITICAL: Prevent axios from modifying URLs
+  withCredentials: false,
 });
 
-// Request interceptor to add token and log requests
+// Request interceptor to add token and enforce HTTPS
 api.interceptors.request.use(config => {
-  // IMPORTANT: Only force HTTPS on production URLs, NOT localhost
-  const isLocalhost = config.baseURL?.includes('localhost') || config.baseURL?.includes('127.0.0.1');
+  // CRITICAL ENFORCEMENT: Check if baseURL is HTTPS
+  if (config.baseURL && config.baseURL.startsWith('http://')) {
+    console.error('🚨 CRITICAL ERROR: baseURL is HTTP! Converting to HTTPS');
+    config.baseURL = config.baseURL.replace('http://', 'https://');
+  }
   
-  if (!isLocalhost) {
-    // CRITICAL: Ensure baseURL is ALWAYS HTTPS in production
+  // Build full URL and verify it's HTTPS
+  const fullURL = (config.baseURL || '') + (config.url || '');
+  if (fullURL.startsWith('http://') && !fullURL.includes('localhost') && !fullURL.includes('127.0.0.1')) {
+    console.error('🚨 CRITICAL ERROR: Full URL is HTTP in production! Converting to HTTPS');
     if (config.baseURL) {
-      if (config.baseURL.startsWith('http://')) {
-        const original = config.baseURL;
-        config.baseURL = config.baseURL.replace('http://', 'https://');
-        console.log('🔒 FIXED HTTP→HTTPS in baseURL:', original, '→', config.baseURL);
-      }
-    }
-    
-    // CRITICAL: Force HTTPS on all non-localhost URLs
-    if (config.url && !config.url.startsWith('/')) {
-      // Absolute URL
-      if (config.url.startsWith('http://')) {
-        const original = config.url;
-        config.url = config.url.replace('http://', 'https://');
-        console.log('🔒 FIXED HTTP→HTTPS in url:', original, '→', config.url);
-      }
+      config.baseURL = config.baseURL.replace('http://', 'https://');
     }
   }
   
-  const fullURL = (config.baseURL || '') + (config.url || '');
   console.log('🌐 API Request:', {
     method: config.method,
     url: config.url,
     baseURL: config.baseURL,
     fullURL: fullURL,
     isHttps: fullURL.startsWith('https://'),
-    isLocalhost: isLocalhost,
     hasToken: !!localStorage.getItem("token")
   });
   
+  // Add auth token
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  // Don't force JSON content-type for blob requests
+  
+  // Add content type for non-blob requests
   if (!config.responseType || config.responseType !== 'blob') {
     config.headers['Content-Type'] = 'application/json';
   }
+  
   return config;
 });
 
