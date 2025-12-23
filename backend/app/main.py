@@ -63,13 +63,11 @@ async def preserve_https_protocol(request: Request, call_next):
 @app.middleware("http")
 async def enforce_https_redirects(request: Request, call_next):
     """Ensure that any redirects use HTTPS protocol to prevent mixed-content errors."""
-    # Skip API routes - let FastAPI handle them normally without redirect modification
-    if request.url.path.startswith("/api/"):
-        return await call_next(request)
-    
+    # Process the request normally
     response = await call_next(request)
     
     # If this is a redirect response (3xx), ensure Location header uses HTTPS
+    # This applies to ALL routes - including API routes - because Railway converts HTTPS to HTTP internally
     if 300 <= response.status_code < 400:
         location = response.headers.get("location")
         if location and location.startswith("http://"):
