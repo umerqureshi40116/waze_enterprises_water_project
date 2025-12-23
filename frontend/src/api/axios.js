@@ -59,11 +59,12 @@ if (isFrontendSecure && !isLocalhost && API_URL) {
   console.log('   🔒 Fallback HTTPS conversion:', originalURL + ' → ' + API_URL);
 }
 
-// ⚠️ CRITICAL: Ensure API_URL is ALWAYS HTTPS before creating axios instance
-if (API_URL && API_URL.startsWith('http://')) {
+// ⚠️ CRITICAL: Only convert HTTP to HTTPS for production (non-localhost) URLs
+// Localhost should stay as HTTP for local development
+if (API_URL && API_URL.startsWith('http://') && !API_URL.includes('localhost') && !API_URL.includes('127.0.0.1')) {
   const original = API_URL;
   API_URL = API_URL.replace('http://', 'https://');
-  console.log('🔒 CRITICAL FIX before axios creation:', original, '→', API_URL);
+  console.log('🔒 CRITICAL FIX before axios creation (production only):', original, '→', API_URL);
 }
 
 console.log('📡 FINAL API Base URL:', API_URL);
@@ -81,16 +82,16 @@ const api = axios.create({
 
 // Request interceptor to add token and enforce HTTPS
 api.interceptors.request.use(config => {
-  // CRITICAL ENFORCEMENT: Check if baseURL is HTTPS
-  if (config.baseURL && config.baseURL.startsWith('http://')) {
-    console.error('🚨 CRITICAL ERROR: baseURL is HTTP! Converting to HTTPS');
+  // Only enforce HTTPS for production (non-localhost) URLs
+  if (config.baseURL && config.baseURL.startsWith('http://') && !config.baseURL.includes('localhost') && !config.baseURL.includes('127.0.0.1')) {
+    console.error('🚨 CRITICAL ERROR: Production baseURL is HTTP! Converting to HTTPS');
     config.baseURL = config.baseURL.replace('http://', 'https://');
   }
   
-  // Build full URL and verify it's HTTPS
+  // Build full URL and verify it's HTTPS (only for production)
   const fullURL = (config.baseURL || '') + (config.url || '');
   if (fullURL.startsWith('http://') && !fullURL.includes('localhost') && !fullURL.includes('127.0.0.1')) {
-    console.error('🚨 CRITICAL ERROR: Full URL is HTTP in production! Converting to HTTPS');
+    console.error('🚨 CRITICAL ERROR: Production URL is HTTP! Converting to HTTPS');
     if (config.baseURL) {
       config.baseURL = config.baseURL.replace('http://', 'https://');
     }

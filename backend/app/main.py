@@ -27,10 +27,10 @@ app.add_middleware(
     allowed_hosts=["*"],  # Railway adds proxy headers
 )
 
-# CORS Configuration - Use settings from config.py
+# CORS Configuration - Allow all origins for development/local
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,  # Use specific origins from config
+    allow_origins=["*"],  # Allow all origins (safe for local development)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,40 +45,22 @@ async def preserve_https_protocol(request: Request, call_next):
     Railway proxies requests through HTTP internally but sends X-Forwarded-Proto: https.
     This middleware ensures we respect the original protocol.
     """
-    # Railway/Vercel send X-Forwarded-Proto header
-    forwarded_proto = request.headers.get("x-forwarded-proto", "http")
-    
-    # If the original request was HTTPS (from Vercel/browser), log it
-    if forwarded_proto == "https":
-        logger.debug(f"✅ Original request protocol: HTTPS (via {request.headers.get('x-forwarded-host', 'unknown')})")
-    
     response = await call_next(request)
-    
-    # Add header to response so Vercel knows we support HTTPS
-    response.headers["X-Forwarded-Proto"] = forwarded_proto
-    
     return response
 
 # Middleware to ensure HTTPS is used in redirects
 @app.middleware("http")
 async def enforce_https_redirects(request: Request, call_next):
     """Ensure that any redirects use HTTPS protocol to prevent mixed-content errors."""
-    # Process the request normally
     response = await call_next(request)
     
     # If this is a redirect response (3xx), ensure Location header uses HTTPS
-    # This applies to ALL routes - including API routes - because Railway converts HTTPS to HTTP internally
     if 300 <= response.status_code < 400:
         location = response.headers.get("location")
         if location and location.startswith("http://"):
-            # Railway is downgrading HTTPS→HTTP in redirects
-            # Force it back to HTTPS
-            original_location = location
             location = location.replace("http://", "https://")
             response.headers["location"] = location
-            logger.warning(
-                f"🔒 FIXED HTTPS downgrade in redirect: {original_location} → {location}"
-            )
+            logger.warning(f"🔒 FIXED HTTPS downgrade in redirect: {location}")
     
     return response
 

@@ -35,7 +35,7 @@ async def get_suppliers(
     current_user: User = Depends(get_current_user)
 ):
     """Get all suppliers"""
-    suppliers = db.query(Supplier).offset(skip).limit(limit).all()
+    suppliers = db.query(Supplier).order_by(Supplier.id.desc()).offset(skip).limit(limit).all()
     return suppliers
 
 @router.get("/{supplier_id}", response_model=SupplierResponse)

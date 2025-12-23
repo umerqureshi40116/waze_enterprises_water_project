@@ -47,7 +47,7 @@ async def get_users(
     current_user: User = Depends(get_current_admin_user)
 ):
     """Get all users (Admin only)"""
-    users = db.query(User).all()
+    users = db.query(User).order_by(User.id.desc()).all()
     return users
 
 @router.delete("/{user_id}")

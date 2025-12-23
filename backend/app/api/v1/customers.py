@@ -37,7 +37,7 @@ async def get_customers(
     """Get all customers"""
     print(f"\n📊 GET /customers endpoint called")
     print(f"   skip={skip}, limit={limit}, user={current_user.username}")
-    customers = db.query(Customer).offset(skip).limit(limit).all()
+    customers = db.query(Customer).order_by(Customer.id.desc()).offset(skip).limit(limit).all()
     print(f"   ✅ Returned {len(customers)} customers")
     return customers
 

@@ -26,7 +26,7 @@ async def get_expenditures(
     current_user: User = Depends(get_current_user)
 ):
     """Get all extra expenditures"""
-    expenditures = db.query(ExtraExpenditure).all()
+    expenditures = db.query(ExtraExpenditure).order_by(ExtraExpenditure.id.desc()).all()
     return expenditures
 
 
