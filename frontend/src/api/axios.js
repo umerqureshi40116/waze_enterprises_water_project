@@ -32,16 +32,31 @@ if (!API_URL) {
   console.log('🔍 DEBUG: API_URL from env var is set:', API_URL);
 }
 
-// Force HTTPS in production to prevent mixed content errors
+// ⚠️ CRITICAL: Force HTTPS in production to prevent mixed content errors
+// This is essential because HTTPS pages CANNOT make requests to HTTP endpoints
 console.log('🔍 DEBUG: HTTPS Enforcement Check');
 console.log('   API_URL before HTTPS check:', API_URL);
+const isFrontendSecure = window.location.protocol === 'https:';
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-if (!isLocalhost && API_URL && API_URL.startsWith('http://')) {
+
+console.log(`   Frontend Protocol: ${window.location.protocol} (is HTTPS: ${isFrontendSecure})`);
+console.log(`   Is Localhost: ${isLocalhost}`);
+
+// IMPORTANT: If frontend is HTTPS, backend MUST be HTTPS (no exceptions)
+if (isFrontendSecure && !isLocalhost && API_URL) {
+  if (API_URL.startsWith('http://')) {
+    const originalURL = API_URL;
+    API_URL = API_URL.replace(/^http:/, 'https:');
+    console.log('   🔒 CRITICAL FIX - HTTPS Frontend needs HTTPS Backend:');
+    console.log('      ' + originalURL + ' → ' + API_URL);
+  } else {
+    console.log('   ✅ Frontend is HTTPS, API_URL is already HTTPS');
+  }
+} else if (!isLocalhost && API_URL && API_URL.startsWith('http://')) {
+  // Fallback for other non-localhost scenarios
   const originalURL = API_URL;
   API_URL = API_URL.replace('http://', 'https://');
-  console.log('   🔒 CONVERTED: ' + originalURL + ' → ' + API_URL);
-} else if (!isLocalhost) {
-  console.log('   ✅ Already HTTPS or localhost - no conversion needed');
+  console.log('   🔒 Fallback HTTPS conversion:', originalURL + ' → ' + API_URL);
 }
 
 console.log('📡 FINAL API Base URL:', API_URL);

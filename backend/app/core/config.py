@@ -20,8 +20,11 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        # Add your Vercel frontend domain here after deployment
-        # "https://your-frontend.vercel.app"
+        # Vercel frontend URLs - CRITICAL for production
+        "https://waze-enterprises-inventory-37jifatop-umers-projects-edd7abcf.vercel.app",
+        "https://waze-enterprises-inventory.vercel.app",
+        # Allow all Vercel preview deployments
+        "https://*.vercel.app"
     ]
     
     # Allow dynamic CORS origins via environment variable
